@@ -68,7 +68,7 @@ export default function Deals() {
                 const st = stageById(d.stageId);
                 const rot = rottingOf(d);
                 return (
-                  <tr key={d.id} onClick={() => nav("/deals/" + d.id)}>
+                  <tr key={d.id} tabIndex={0} role="button" aria-label={`딜 ${d.name || "무제"} 열기`} onClick={() => nav("/deals/" + d.id)} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), nav("/deals/" + d.id))}>
                     <td><b>{d.name || "(무제)"}</b>{d.moneyTestId && <span className="badge gray" style={{ marginLeft: 6 }}>머니테스트</span>}</td>
                     <td className="num mono">{won(d.amount)}</td>
                     <td><span className="badge gray">{st.name} {Math.round(st.prob * 100)}%</span></td>

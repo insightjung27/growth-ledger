@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useRef } from "react";
-import { exportJSON, importJSON } from "../lib/store.js";
+import { exportJSON, importJSON, markBackup, counts, usePersistError } from "../lib/store.js";
 import { isoDate } from "../lib/format.js";
 
 const TABS = [
@@ -11,29 +11,37 @@ const TABS = [
   { to: "/growth", label: "성장" },
 ];
 
+function download(text, name) {
+  const blob = new Blob([text], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 export default function Layout() {
   const fileRef = useRef(null);
+  const persistErr = usePersistError();
 
   function doExport() {
-    const blob = new Blob([exportJSON()], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `성장원장-백업-${isoDate()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    download(exportJSON(), `성장원장-백업-${isoDate()}.json`);
+    markBackup();
   }
   function onPickFile(e) {
     const f = e.target.files?.[0];
     if (!f) return;
+    const c = counts();
+    if ((c.deals || c.moneyTests || c.weeklyReviews) && !confirm(`현재 데이터(딜 ${c.deals}·머니테스트 ${c.moneyTests}·주간리뷰 ${c.weeklyReviews}건)를 불러온 파일로 덮어씁니다. 안전을 위해 먼저 현재 데이터를 백업합니다. 계속할까요?`)) {
+      e.target.value = "";
+      return;
+    }
+    // 교체 전 자동 사전 백업
+    if (c.deals || c.moneyTests || c.weeklyReviews) download(exportJSON(), `성장원장-교체전백업-${isoDate()}.json`);
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        importJSON(String(reader.result));
-        alert("백업을 불러왔습니다.");
-      } catch (err) {
-        alert("불러오기 실패: " + err.message);
-      }
+      try { importJSON(String(reader.result)); alert("백업을 불러왔습니다."); }
+      catch (err) { alert("불러오기 실패: " + err.message); }
     };
     reader.readAsText(f);
     e.target.value = "";
@@ -65,6 +73,12 @@ export default function Layout() {
           ))}
         </nav>
       </header>
+
+      {persistErr && (
+        <div style={{ background: "var(--red-bg)", color: "var(--red)", padding: "10px 16px", textAlign: "center", fontSize: 13, fontWeight: 600 }}>
+          저장 공간에 데이터를 기록하지 못했습니다(브라우저 저장 한도·시크릿 모드 등). 지금 바로 "내보내기"로 백업하세요.
+        </div>
+      )}
 
       <main className="main">
         <Outlet />

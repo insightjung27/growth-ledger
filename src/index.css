@@ -291,3 +291,31 @@ th.num { text-align: right; }
 .chart .area { fill: var(--accent-weak); opacity: .7; }
 .chart .pt { fill: var(--accent); }
 .chart .lbl { fill: var(--muted); font-size: 10px; }
+
+/* ===== 적대검토 반영 보정 ===== */
+/* [13] 다크모드 기본버튼 대비: 밝은 accent 배경엔 어두운 텍스트 */
+@media (prefers-color-scheme: dark) {
+  .btn-primary { color: #0f1220; }
+}
+/* 버튼으로 만든 quick/li 리셋 */
+.quick { width: 100%; font: inherit; }
+button.li { font: inherit; }
+/* 긴 텍스트 방어 */
+.between > div:first-child, .page-head > div:first-child { min-width: 0; }
+.page-head h1, .li-title, .verdict-line { overflow-wrap: anywhere; }
+/* 표: 셀 말줄임(가로 폭주 방지) */
+table.grid th { position: static; }
+table.grid td { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 큰 금액 넘침 방지 */
+.kv .v, .stat .v, .case .cv { overflow-wrap: anywhere; }
+@media (max-width: 400px) { .kv-grid { grid-template-columns: 1fr; } }
+/* 모바일 stat: 설명 줄바꿈 */
+@media (max-width: 560px) {
+  .stat { flex-wrap: wrap; }
+  .stat .d { flex-basis: 100%; }
+  .stat .v { min-width: 0; }
+  /* 터치 타깃 */
+  .tagset button, .seg button, .dunno { min-height: 40px; }
+  .x { width: 40px; height: 40px; }
+  .iconbtn { min-height: 38px; }
+}

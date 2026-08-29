@@ -10,7 +10,7 @@ export default function Growth() {
     <div>
       <div className="page-head">
         <h1>성장 · 역량 자가진단</h1>
-        <p className="sub">5개 역량 중 J님의 갭은 사업·영업과 위임·조직. 이 앱의 딜·머니테스트·주간리뷰가 바로 이 두 갭을 겨냥합니다.</p>
+        <p className="sub">서비스기획·제품이 강점이라면, 흔한 갭은 사업·영업과 위임·조직입니다. 이 앱의 딜·머니테스트·주간리뷰가 바로 이 두 갭을 겨냥합니다.</p>
       </div>
 
       <div className="notice info section">

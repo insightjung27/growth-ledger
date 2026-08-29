@@ -28,7 +28,7 @@ export function CashflowChart({ points }) {
   }
 
   return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="월별 누적현금흐름">
+    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="월별 누적현금흐름">
       <path className="area" d={area} />
       <line className="zero" x1={padL} y1={zeroY} x2={W - padR} y2={zeroY} />
       <path className="linepath" d={line} />
@@ -54,7 +54,7 @@ export function TrendChart({ series }) {
   const py = (v) => padT + (1 - v / maxV) * (H - padT - padB);
   const line = series.map((s, i) => `${i === 0 ? "M" : "L"}${px(i).toFixed(1)},${py(s.value).toFixed(1)}`).join(" ");
   return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="북극성 비율 추세">
+    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="북극성 비율 추세">
       <line className="axis" x1={padL} y1={py(0)} x2={W - padR} y2={py(0)} />
       <path className="linepath" d={line} />
       {series.map((s, i) => (

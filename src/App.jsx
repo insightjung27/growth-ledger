@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom";
+import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import Layout from "./components/Layout.jsx";
 import Home from "./pages/Home.jsx";
 import Deals from "./pages/Deals.jsx";
@@ -9,6 +10,7 @@ import Growth from "./pages/Growth.jsx";
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Home />} />
@@ -21,5 +23,6 @@ export default function App() {
         <Route path="*" element={<Home />} />
       </Route>
     </Routes>
+    </ErrorBoundary>
   );
 }
