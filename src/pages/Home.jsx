@@ -1,0 +1,102 @@
+import { useMemo } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useStore, currentWeekKey } from "../lib/store.js";
+import { pipelineWeighted, rottingOf, stageById } from "../lib/deal.js";
+import { won, weekLabel, weekMonday, relDate } from "../lib/format.js";
+
+function weeklyStreak(reviews) {
+  const keys = new Set(reviews.filter((w) => (w.solvedSelf || []).length || (w.delegated || []).length).map((w) => w.weekOf));
+  let streak = 0;
+  let cur = new Date(currentWeekKey());
+  for (let i = 0; i < 104; i++) {
+    const k = weekMonday(cur);
+    if (keys.has(k)) {
+      streak++;
+      cur.setDate(cur.getDate() - 7);
+    } else break;
+  }
+  return streak;
+}
+
+export default function Home() {
+  const state = useStore();
+  const nav = useNavigate();
+  const { deals, moneyTests, weeklyReviews } = state;
+
+  const weighted = useMemo(() => pipelineWeighted(deals), [deals]);
+  const rotting = deals.map((d) => ({ d, rot: rottingOf(d) })).filter((x) => x.rot?.level === "red");
+  const streak = weeklyStreak(weeklyReviews);
+  const weekKey = currentWeekKey();
+  const thisWeekDone = weeklyReviews.some((w) => w.weekOf === weekKey && ((w.solvedSelf || []).length || (w.delegated || []).length));
+  const greenTests = moneyTests.filter((m) => m.verdict === "green").length;
+
+  const empty = deals.length === 0 && moneyTests.length === 0 && weeklyReviews.length === 0;
+
+  return (
+    <div>
+      <div className="page-head">
+        <h1>오늘</h1>
+        <p className="sub">여는 데 30초. 실무를 기록하면 사업감각과 리더십이 숫자로 남습니다.</p>
+      </div>
+
+      <div className="section quick-grid">
+        <div className="quick" onClick={() => nav("/money-test")}>
+          <span className="q-ic">💰</span> 돈 되는지 검토 <span className="q-sub">머니테스트</span>
+        </div>
+        <div className="quick" onClick={() => nav("/deals")}>
+          <span className="q-ic">🗂️</span> 딜 기록 <span className="q-sub">파이프라인</span>
+        </div>
+        <div className="quick" onClick={() => nav("/weekly")}>
+          <span className="q-ic">🧭</span> 주간 리뷰 <span className="q-sub">북극성</span>
+        </div>
+      </div>
+
+      <div className="stat-row section">
+        <div className="stat"><div className="k">가중 파이프라인</div><div className="v">{won(weighted)}</div><div className="d">딜 {deals.length}건</div></div>
+        <div className="stat"><div className="k">머니테스트</div><div className="v">{moneyTests.length}<small>건</small></div><div className="d">진행 판정 {greenTests}건</div></div>
+        <div className="stat"><div className="k">주간리뷰 연속</div><div className="v">{streak}<small>주</small></div><div className="d">{thisWeekDone ? "이번 주 완료" : "이번 주 미작성"}</div></div>
+      </div>
+
+      {empty && (
+        <div className="panel empty section">
+          <div className="em-ic">🌱</div>
+          <h3>성장원장을 시작해 보세요</h3>
+          <p>가장 좋은 첫 걸음은 지금 머릿속에 있는 "이거 하면 돈이 될까" 하나를 머니테스트로 돌려보는 것입니다. 재무를 몰라도 됩니다.</p>
+          <button className="btn btn-primary" onClick={() => nav("/money-test")}>머니테스트 해보기</button>
+        </div>
+      )}
+
+      {!thisWeekDone && !empty && (
+        <div className="notice warn section">
+          이번 주({weekLabel(weekKey)}) 자기리뷰가 아직 비어 있습니다. 금요일 5분, 직접 푼 문제와 남에게 넘긴 일을 적어 북극성 비율을 남기세요. <Link to="/weekly" style={{ fontWeight: 700 }}>지금 하기 →</Link>
+        </div>
+      )}
+
+      {rotting.length > 0 && (
+        <div className="section">
+          <div className="section-title">방치 경고 — 다음 행동이 필요한 딜</div>
+          <div className="panel panel-pad">
+            <div className="stack">
+              {rotting.map(({ d, rot }) => (
+                <div key={d.id} className="li" style={{ cursor: "pointer" }} onClick={() => nav("/deals/" + d.id)}>
+                  <span className="dot red" style={{ marginTop: 6 }} />
+                  <div className="li-main">
+                    <div className="li-title">{d.name || "(무제)"} <span className="tiny muted">· {stageById(d.stageId).name} · {won(d.amount)}</span></div>
+                    <div className="li-sub">{rot.why}{d.lastContact ? ` · 마지막 접촉 ${relDate(d.lastContact)}` : ""}</div>
+                  </div>
+                  <span className="btn btn-sm">열기</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="section">
+        <div className="notice info">
+          이 앱의 첫 목표는 8주 뒤 "행동"으로 성공을 정의합니다: 딜 3건이 표에 살아 있고, 머니테스트 3장을 돌렸고, 주간리뷰가 4주 연속 채워지는 것.
+        </div>
+      </div>
+    </div>
+  );
+}

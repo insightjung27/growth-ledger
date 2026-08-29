@@ -1,0 +1,21 @@
+{
+  "name": "growth-ledger",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "성장원장 — 서비스기획자를 사업·조직 리더로 키우는 개인 자기훈련 원장",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.4",
+    "vite": "^8.2.0"
+  }
+}
