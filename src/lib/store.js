@@ -75,6 +75,26 @@ function sanitize(obj) {
   const s = { ...base, ...(obj && typeof obj === "object" ? obj : {}) };
   for (const k of ARRAYS) if (!Array.isArray(s[k])) s[k] = base[k];
   if (!s.meta || typeof s.meta !== "object") s.meta = base.meta;
+  // 레코드 딥 백필 — 손상/구버전 백업 import 시 중첩 객체 누락으로 인한 크래시 방지
+  s.decisions = s.decisions.map((x) => ({
+    criteria: [], options: [], nextActions: [], framesUsed: [], ...x,
+    premortem: { failureModes: [], killCriteria: "", ...(x && x.premortem) },
+    decision: { chosenOptionId: null, rationale: "", ...(x && x.decision) },
+    prediction: { expected: "", target: "", confidence: 60, ...(x && x.prediction) },
+    review: { actualValue: "", hit: "", lesson: "", ...(x && x.review) },
+  }));
+  s.deals = s.deals.map((x) => ({
+    ...x,
+    customerQuestions: { ...(x && x.customerQuestions) },
+    journey: { ...(x && x.journey) },
+  }));
+  s.handoffs = s.handoffs.map((x) => ({
+    checkpoints: [], ...x,
+    result: { met: "", rework: false, reworkCount: 0, autonomy: "", reviewNote: "", valueRealized: "", ...(x && x.result) },
+  }));
+  s.teamMembers = s.teamMembers.map((x) => ({ strengths: [], growthAreas: [], levelHistory: [], projects: [], operations: [], ...x }));
+  s.oneOnOnes = s.oneOnOnes.map((x) => ({ actionItems: [], carriedOver: [], ...x }));
+  s.quarterlyGoals = s.quarterlyGoals.map((x) => ({ changeLog: [], ...x }));
   return s;
 }
 
@@ -136,11 +156,17 @@ const _dec = coll("decisions", () => ({
   reviewDate: "", review: { actualValue: "", hit: "", lesson: "" }, reviewedAt: null,
   nextActions: [], moneyTestId: null,
 }));
-export const addDecision = _dec.add, updateDecision = _dec.update, removeDecision = _dec.remove, getDecision = _dec.get;
+export const addDecision = _dec.add, updateDecision = _dec.update, getDecision = _dec.get;
+export function removeDecision(id) {
+  setState((s) => ({ ...s, decisions: s.decisions.filter((x) => x.id !== id), deals: s.deals.map((d) => (d.decisionId === id ? { ...d, decisionId: null } : d)), moneyTests: s.moneyTests.map((m) => (m.decisionId === id ? { ...m, decisionId: null } : m)) }));
+}
 
 /* ===== 회사 목표 [기둥② R3] ===== */
 const _cg = coll("companyGoals", () => ({ quarter: "", title: "", description: "" }));
-export const addCompanyGoal = _cg.add, updateCompanyGoal = _cg.update, removeCompanyGoal = _cg.remove, getCompanyGoal = _cg.get;
+export const addCompanyGoal = _cg.add, updateCompanyGoal = _cg.update, getCompanyGoal = _cg.get;
+export function removeCompanyGoal(id) {
+  setState((s) => ({ ...s, companyGoals: s.companyGoals.filter((c) => c.id !== id), quarterlyGoals: s.quarterlyGoals.map((g) => (g.companyGoalId === id ? { ...g, companyGoalId: null } : g)) }));
+}
 
 /* ===== 분기 목표 [기둥② 항목6·R3] ===== */
 const _qg = coll("quarterlyGoals", () => ({ quarter: "", title: "", successMetric: "", targetValue: "", currentValue: "", ownerMemberId: null, companyGoalId: null, status: "진행중", changeLog: [], memo: "" }));

@@ -52,6 +52,8 @@ export default function Home() {
   const { deals, moneyTests, decisions, teamMembers, handoffs, oneOnOnes, quarterlyGoals, weeklyReviews, meta } = state;
 
   const now = new Date();
+  // 하루 단위 재계산 트리거 — now(new Date())는 매 렌더 새 참조라 deps로 못 씀. ISO 날짜 문자열로 고정.
+  const todayIso = isoDate(now);
   const isFriday = now.getDay() === 5;
   const weekKey = currentWeekKey();
   const activeMembers = useMemo(() => (teamMembers || []).filter((m) => m.active !== false), [teamMembers]);
@@ -106,7 +108,10 @@ export default function Home() {
     for (const m of moneyTests || []) {
       if (m.actualPayback != null) continue;
       let pm = null;
-      try { pm = compute(m.inputs || {}).payback; } catch (e) { pm = null; }
+      let mode = null;
+      try { const c = compute(m.inputs || {}); pm = c.payback; mode = c.mode; } catch (e) { pm = null; mode = null; }
+      // earn 모드는 payback이 없어 '회수 대조' 신호가 성립하지 않음 — save 모드만 대조 대상.
+      if (mode !== "save") continue;
       if (pm == null || !isFinite(pm) || pm <= 0) continue;
       const created = m.createdAt ? new Date(m.createdAt).getTime() : now.getTime();
       const dueAt = created + pm * 30.44 * 86400000;
@@ -159,7 +164,7 @@ export default function Home() {
     }
     return { signals: merged, overdueReviews: overdue };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deals, moneyTests, decisions, handoffs, oneOnOnes, quarterlyGoals, activeMembers, weeklyDone, isFriday]);
+  }, [deals, moneyTests, decisions, handoffs, oneOnOnes, quarterlyGoals, activeMembers, weeklyDone, isFriday, todayIso]);
 
   const today = useMemo(() => pickTop(signals, 3, hasTeam), [signals, hasTeam]);
   const todayIds = new Set(today.map((t) => t.id));

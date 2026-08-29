@@ -81,14 +81,14 @@ export default function Weekly() {
     upsertWeekly(weekKey, { solvedSelf: [...(cur.solvedSelf || []), solved.trim()] });
     setSolved("");
   }
-  function rmSolved(i) { upsertWeekly(weekKey, { solvedSelf: cur.solvedSelf.filter((_, x) => x !== i) }); }
+  function rmSolved(i) { upsertWeekly(weekKey, { solvedSelf: (cur.solvedSelf || []).filter((_, x) => x !== i) }); }
   function addDelegated() {
     if (!delText.trim()) return;
     upsertWeekly(weekKey, { delegated: [...(cur.delegated || []), { id: uid(), text: delText.trim(), delegateType: delType, done: false, handoffId: null }] });
     setDelText("");
   }
-  function rmDelegated(i) { upsertWeekly(weekKey, { delegated: cur.delegated.filter((_, x) => x !== i) }); }
-  function toggleDone(i) { upsertWeekly(weekKey, { delegated: cur.delegated.map((d, x) => (x === i ? { ...d, done: !d.done } : d)) }); }
+  function rmDelegated(i) { upsertWeekly(weekKey, { delegated: (cur.delegated || []).filter((_, x) => x !== i) }); }
+  function toggleDone(i) { upsertWeekly(weekKey, { delegated: (cur.delegated || []).map((d, x) => (x === i ? { ...d, done: !d.done } : d)) }); }
 
   function freezeSnapshot() {
     // 이번 주 마감 — 자동요약을 동결(회계 마감). 재마감 허용(값 갱신).

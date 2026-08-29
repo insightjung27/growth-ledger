@@ -7,6 +7,7 @@ const KEY = "growth-ledger:unlocked";
 
 export default function PinGate({ children }) {
   const [ok, setOk] = useState(() => {
+    try { if (import.meta && import.meta.env && import.meta.env.DEV) return true; } catch (e) {} // 로컬 dev 편의(프로덕션 빌드엔 미적용)
     try { return localStorage.getItem(KEY) === "1"; } catch (e) { return false; }
   });
   const [val, setVal] = useState("");

@@ -38,7 +38,7 @@ function parseList(text) {
 function promotionSignal(member, handoffs) {
   return handoffs.some(
     (h) => h.assigneeId === member.id && h.status === "done" &&
-      h.result?.autonomy === "solved_by_them" && h.result?.met === "met" && !h.result?.rework
+      h.result?.autonomy === "solved_by_them" && h.result?.met === "met" && !h.result?.rework && (h.result?.reworkCount || 0) === 0
   );
 }
 
@@ -90,8 +90,9 @@ export default function Team() {
   const avgTgt = members.length ? members.reduce((a, m) => a + (m.levelTarget || 0), 0) / members.length : null;
   const doneGoals = qGoals.filter((g) => g.status === "달성").length;
   const lastOneOnOne = (id) => {
-    const list = oneOnOnes.filter((o) => o.memberId === id && o.date).sort((a, b) => (a.date < b.date ? 1 : -1));
-    return list[0]?.date || null;
+    const dt = (o) => o.date || (o.createdAt || "").slice(0, 10);
+    const list = oneOnOnes.filter((o) => o.memberId === id && dt(o)).sort((a, b) => (dt(a) < dt(b) ? 1 : -1));
+    return list[0] ? dt(list[0]) : null;
   };
 
   return (

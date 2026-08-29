@@ -40,7 +40,7 @@ export default function OneOnOnes() {
   const visible = useMemo(() => {
     let list = sessions;
     if (memberFilter) list = list.filter((s) => s.memberId === memberFilter);
-    return [...list].sort((a, b) => ((b.date || "") < (a.date || "") ? -1 : 1));
+    return [...list].sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.createdAt || "").localeCompare(a.createdAt || ""));
   }, [sessions, memberFilter]);
 
   // 선택 세션 결정(로컬 state가 유효하면 그것, 아니면 목록 최상단)
@@ -172,7 +172,7 @@ export default function OneOnOnes() {
                     <div key={s.id} className="li" style={active ? { outline: "2px solid var(--accent)", outlineOffset: 2, borderRadius: 10 } : undefined}>
                       <button className="li-main" style={{ textAlign: "left", background: "transparent", border: "none", cursor: "pointer", minWidth: 0 }} onClick={() => setSelId(s.id)}>
                         <div className="li-title">{memberName(s.memberId)}</div>
-                        <div className="li-sub">{s.date || "날짜 미정"} · {relDate(s.date ? new Date(s.date).toISOString() : s.createdAt)}</div>
+                        <div className="li-sub">{s.date || "날짜 미정"} · {relDate(s.date || s.createdAt)}</div>
                       </button>
                       {over && <span className="badge red">이월 과다</span>}
                       {inc > 0 ? <span className="badge amber">미완 {inc}</span> : <span className="badge green">정리됨</span>}

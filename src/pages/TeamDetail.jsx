@@ -11,7 +11,7 @@ const HO_STATUS = { assigned: "할당", in_progress: "진행중", review: "리�
 
 function promotionSignal(handoffs) {
   return handoffs.some(
-    (h) => h.status === "done" && h.result?.autonomy === "solved_by_them" && h.result?.met === "met" && !h.result?.rework
+    (h) => h.status === "done" && h.result?.autonomy === "solved_by_them" && h.result?.met === "met" && !h.result?.rework && (h.result?.reworkCount || 0) === 0
   );
 }
 

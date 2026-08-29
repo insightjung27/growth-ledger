@@ -61,7 +61,13 @@ export default function Growth() {
   const handoffReady = peopleDoneAll.length >= 1; // 완료 이력이 하나라도 있어야 계측
 
   // 3) 머니테스트 payback 정확도: 실측 대비 예측이 ±25% 이내
-  const measuredMt = moneyTests.filter((m) => m.actualPayback != null && isFinite(Number(m.actualPayback)));
+  //    payback은 save(내부효율화) 모드에만 존재하고, earn(SI·SaaS)엔 없음.
+  //    또한 아직 actualPayback(실측) 입력 경로가 앱에 없어 계측 불가 → '준비중'으로 안전 표기(오도·크래시 방지).
+  const measuredMt = moneyTests.filter((m) => {
+    const t = m.inputs && m.inputs.projectType ? m.inputs.projectType : "internal";
+    const isSave = ["internal"].includes(t);
+    return isSave && m.actualPayback != null && isFinite(Number(m.actualPayback));
+  });
   let paybackHits = 0;
   measuredMt.forEach((m) => {
     try {
@@ -72,6 +78,7 @@ export default function Growth() {
       }
     } catch (e) { /* 손상 입력은 표본에서 제외하지 않되 부정확으로 간주 */ }
   });
+  // 실측 입력 경로가 아직 없으므로(=표본이 구조적으로 0), 그럴듯한 숫자 대신 '준비중'을 유지한다.
   const paybackReady = measuredMt.length >= SAMPLE_MIN;
 
   // 4) 위임수준 평균: 활성 팀원 기준
@@ -132,7 +139,7 @@ export default function Growth() {
               ready={paybackReady}
               value={paybackReady ? pct(paybackHits / measuredMt.length) : ""}
               sub={paybackReady ? `실측 ${measuredMt.length}건 중 예측 ±25% 이내 ${paybackHits}건` : ""}
-              reason={`실측 완료 ${measuredMt.length}건 / 최소 ${SAMPLE_MIN}건 필요`}
+              reason={measuredMt.length === 0 ? "계측 불가(준비중) — 실측 payback 입력 경로 미구현" : `실측 완료 ${measuredMt.length}건 / 최소 ${SAMPLE_MIN}건 필요`}
               good={paybackReady && paybackHits / measuredMt.length >= 0.6}
             />
             <Metric

@@ -39,9 +39,11 @@ function nextLine(d, today) {
   return "질문·기준·옵션을 작성하세요";
 }
 
-function ddayChip(iso, today) {
+function ddayChip(iso, today, status) {
   if (!iso) return null;
-  const passed = daysBetween(iso); // 양수 = 지남
+  // 미결정(작성 중·검증 중)일 때만 마감 칩 표시 — 결정 끝난 판단엔 마감 초과 칩을 띄우지 않음
+  if (status !== "draft" && status !== "verifying") return null;
+  const passed = daysBetween(iso, new Date(today)); // today 문자열 기준, 양수 = 지남
   if (passed == null) return null;
   const remain = -passed;
   if (remain < 0) return { text: `마감 +${-remain}일`, cls: "badge red" };
@@ -52,7 +54,7 @@ function ddayChip(iso, today) {
 
 function DecisionCard({ d, today, onOpen }) {
   const sm = statusMeta(d, today);
-  const dd = ddayChip(d.deadline, today);
+  const dd = ddayChip(d.deadline, today, d.status);
   const irrev = d.reversibility === "irreversible";
   return (
     <button

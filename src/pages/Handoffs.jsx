@@ -23,7 +23,8 @@ function summarize(h) {
   const reachedPct = h.status === "done" ? 100 : cps.filter((c) => c.reached).reduce((m, c) => Math.max(m, c.milestonePct || 0), 0);
   const needsReview = cps.some((c) => c.reached && !c.reviewed) && h.status !== "done";
   const today = isoDate();
-  const dLeft = h.deadline ? -1 * daysBetween(new Date(h.deadline + "T00:00:00").toISOString()) : null; // +면 남음, -면 지남
+  const _dd = new Date(h.deadline + "T00:00:00");
+  const dLeft = (h.deadline && !isNaN(_dd)) ? -1 * daysBetween(_dd) : null; // +면 남음, -면 지남
   const open = OPEN_STATES.includes(h.status);
   const overdue = !!h.deadline && open && h.deadline < today;
   const dueSoon = !!h.deadline && open && !overdue && dLeft != null && dLeft <= 2;
@@ -64,7 +65,7 @@ export default function Handoffs() {
   const reviewN = rows.filter((r) => r.s.needsReview).length;
   const overdueN = rows.filter((r) => r.s.overdue).length;
   const blockedN = rows.filter((r) => r.h.status === "blocked").length;
-  const peopleDone = rows.filter((r) => r.s.kind === "people" && r.h.status === "done").length;
+  const peopleDone = rows.filter((r) => r.s.northStar && r.h.status === "done" && !(r.h.result && r.h.result.rework)).length;
   const axN = rows.filter((r) => r.s.kind === "people" ? false : true).length;
 
   return (
@@ -219,7 +220,7 @@ function HandoffWizard({ members, onClose, onDone }) {
     if (!canSave) return;
     const id = addHandoff({
       title: f.title.trim(),
-      assigneeId: needAssignee ? f.assigneeId : (f.assigneeId || null),
+      assigneeId: needAssignee ? f.assigneeId : null,
       delegateType: f.delegateType,
       delegationLevel: Number(f.delegationLevel) || 2,
       outcome: f.outcome.trim(),
