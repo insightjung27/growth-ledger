@@ -122,7 +122,7 @@ export default function Decisions() {
       <div className="page-head between">
         <div>
           <h1>판단 원장</h1>
-          <p className="sub">비즈니스 판단 1건 = 1레코드. 기준을 먼저 정하고 → 결정하고 → 예측을 동결하고 → 기한에 대조합니다. 대조가 판단력의 증거입니다.</p>
+          <p className="sub">비즈니스 판단 1건 = 1레코드. 기준을 먼저 정하고 → 결정하고 → 예측을 동결하고 → 기한에 대조합니다. 대조가 판단력의 증거입니다. 돈 판단이면 머니테스트로, 그 외엔 기대값·프리모템으로 검증합니다.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setAdding(true)}>+ 신규 판단</button>
       </div>

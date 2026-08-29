@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { compute, defaultInputs, typeOf, PROJECT_TYPES, verdictText, needsWatermark, SI_GRADES, SI_ROLE_PRESETS, gradeRate, makeRole, roleCost } from "../lib/money.js";
-import { addMoneyTest, updateMoneyTest, removeMoneyTest, getMoneyTest } from "../lib/store.js";
+import { addMoneyTest, updateMoneyTest, removeMoneyTest, getMoneyTest, addDecision } from "../lib/store.js";
 import { won, pct, months as fmtMonths, manToWon, wonToMan } from "../lib/format.js";
 import { CashflowChart } from "../components/Charts.jsx";
 
@@ -117,6 +117,18 @@ export default function MoneyTest() {
     setInp(defaultInputs("internal")); setSavedId(null); setDirty(false); setStep(0); nav("/money-test");
   }
   function del() { if (savedId && confirm("이 머니테스트를 삭제할까요?")) { removeMoneyTest(savedId); try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} nav("/money-test"); } }
+  // 머니테스트 → 판단으로 승격: '돈 되나' 계산을 '할까/말까 + 나중에 대조'하는 판단으로 올린다.
+  function toDecision() {
+    let mid = savedId;
+    if (!mid) { mid = addMoneyTest({ inputs: inp, name: inp.name, verdict: r.verdict.light, projectType: inp.projectType }); setSavedId(mid); setDirty(false); try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+    else { updateMoneyTest(mid, { inputs: inp, name: inp.name, verdict: r.verdict.light, projectType: inp.projectType }); setDirty(false); }
+    const rec = getMoneyTest(mid);
+    if (rec && rec.decisionId) { nav("/decisions/" + rec.decisionId); return; }
+    const did = addDecision({ title: inp.name || "돈 판단", type: "money", question: `${inp.name || "이 건"} — 진행할지, 어떤 조건으로 갈지 판단한다.`, moneyTestId: mid, framesUsed: ["moneytest"] });
+    updateMoneyTest(mid, { decisionId: did });
+    nav("/decisions/" + did);
+  }
+  const linkedDecId = savedId ? (getMoneyTest(savedId)?.decisionId || null) : null;
   function copySales() { if (r.sales) navigator.clipboard?.writeText(r.sales).then(() => alert("근거문장을 복사했습니다.")); }
 
   return (
@@ -124,6 +136,9 @@ export default function MoneyTest() {
       <div className="page-head">
         <h1>사업성 머니테스트</h1>
         <p className="sub">쉬운 질문 몇 개로 "이거 돈 될까"를 신호등으로 판정합니다. 모르는 값은 '추정'으로 두고, 결과는 정직하게 노랑에서 멈춥니다.</p>
+      </div>
+      <div className="notice info section">
+        머니테스트는 <b>'이거 돈 되나'</b>만 계산하는 도구입니다. <b>'할까/말까'</b>를 결정으로 남기고 나중에 <b>실제와 대조</b>하려면 아래 <b>판단으로 만들기</b>를 누르세요. (판단 = 결정·근거·예측을 남기고 맞았는지 대조하는 원장 / 머니테스트 = 그 원장의 '돈 검증' 도구)
       </div>
 
       <div className="section">
@@ -338,6 +353,7 @@ export default function MoneyTest() {
 
       <div className="gap-wrap" style={{ position: "sticky", bottom: 12, background: "var(--paper-2)", padding: "10px 0", zIndex: 5 }}>
         <button className="btn btn-primary" onClick={save}>{savedId ? "저장" : "머니테스트 저장"}{dirty && !savedId ? "" : ""}</button>
+        <button className="btn" onClick={toDecision} style={{ color: "var(--accent)", borderColor: "color-mix(in srgb, var(--accent) 45%, var(--line))", fontWeight: 700 }}>{linkedDecId ? "연결된 판단 열기 →" : "판단으로 만들기 →"}</button>
         <button className="btn" onClick={newTest}>새로 만들기</button>
         {savedId && <button className="btn btn-danger" onClick={del}>삭제</button>}
         {dirty && <span className="tiny" style={{ color: "var(--amber)", alignSelf: "center" }}>저장 안 됨</span>}
