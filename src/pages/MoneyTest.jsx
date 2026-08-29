@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { compute, defaultInputs, typeOf, PROJECT_TYPES, verdictText, needsWatermark } from "../lib/money.js";
+import { compute, defaultInputs, typeOf, PROJECT_TYPES, verdictText, needsWatermark, SI_GRADES, SI_ROLE_PRESETS, gradeRate, makeRole, roleCost } from "../lib/money.js";
 import { addMoneyTest, updateMoneyTest, removeMoneyTest, getMoneyTest } from "../lib/store.js";
 import { won, pct, months as fmtMonths, manToWon, wonToMan } from "../lib/format.js";
 import { CashflowChart } from "../components/Charts.jsx";
@@ -100,6 +100,9 @@ export default function MoneyTest() {
   const setMeasured = (k, val) => setInp((s) => ({ ...s, measured: { ...s.measured, [k]: val || undefined } }));
   const setMoney = (k, man) => set({ [k]: man === "" ? 0 : manToWon(man) });
   const setRate = (k, p) => set({ [k]: p === "" ? (k === "adoptionRate" ? null : 0) : Math.max(0, Math.min(100, Number(p))) / 100 });
+  const addRole = () => set({ roles: [...(inp.roles || []), makeRole()] });
+  const updateRole = (i, patch) => set({ roles: (inp.roles || []).map((x, idx) => (idx === i ? { ...x, ...patch } : x)) });
+  const removeRole = (i) => set({ roles: (inp.roles || []).filter((_, idx) => idx !== i) });
 
   function changeType(pt) { setInp((s) => ({ ...defaultInputs(pt), name: s.name })); setDirty(true); setStep(0); }
   function save() {
@@ -231,10 +234,41 @@ export default function MoneyTest() {
               <Num value={wonToMan(inp.revenue)} onChange={(x) => setMoney("revenue", x)} suffix="만원" min="0" />
               <Confidence k="revenue" inp={inp} setMeasured={setMeasured} />
             </Row>
-            <div className="row2">
-              <Row label="외주비" echo={inp.outsourcing}><Num value={wonToMan(inp.outsourcing)} onChange={(x) => setMoney("outsourcing", x)} suffix="만원" min="0" /><Confidence k="outsourcing" inp={inp} setMeasured={setMeasured} /></Row>
-              <Row label="내부공수(내 시간)" why="여기도 필수 — 내 시간은 공짜가 아닙니다." echo={inp.internalCost}><Num value={wonToMan(inp.internalCost)} onChange={(x) => setMoney("internalCost", x)} suffix="만원" min="0" /><Confidence k="internalCost" inp={inp} setMeasured={setMeasured} /></Row>
-            </div>
+            {inp.projectType === "si" ? (
+              <div className="field">
+                <label>투입 공수 — 역할·등급별 단가 × 인원 × 개월</label>
+                <div className="hint">SW 노임단가처럼 등급별 월단가로 원가를 잡습니다. 월단가 기본값은 예시 — 실제 연도 노임단가로 수정하세요.</div>
+                <div className="table-wrap" style={{ marginTop: 8 }}>
+                  <table className="grid" style={{ minWidth: 560 }}>
+                    <thead><tr><th>역할</th><th>등급</th><th className="num">인원</th><th className="num">개월</th><th className="num">월단가(만)</th><th className="num">소계</th><th>구분</th><th></th></tr></thead>
+                    <tbody>
+                      {(inp.roles || []).map((rl, i) => (
+                        <tr key={rl.id}>
+                          <td><input className="input" list="si-roles" style={{ minWidth: 84, height: 34 }} value={rl.role} onChange={(e) => updateRole(i, { role: e.target.value })} /></td>
+                          <td><select className="select" style={{ height: 34, width: 76 }} value={rl.grade} onChange={(e) => updateRole(i, { grade: e.target.value, monthlyRate: gradeRate(e.target.value) })}>{SI_GRADES.map((g) => <option key={g.id} value={g.id}>{g.id}</option>)}</select></td>
+                          <td className="num"><input className="input" type="number" min="0" style={{ width: 56, height: 34, textAlign: "right" }} value={rl.count} onChange={(e) => updateRole(i, { count: Number(e.target.value) || 0 })} /></td>
+                          <td className="num"><input className="input" type="number" min="0" style={{ width: 60, height: 34, textAlign: "right" }} value={rl.months} onChange={(e) => updateRole(i, { months: Number(e.target.value) || 0 })} /></td>
+                          <td className="num"><input className="input" type="number" min="0" style={{ width: 74, height: 34, textAlign: "right" }} value={Math.round(wonToMan(rl.monthlyRate))} onChange={(e) => updateRole(i, { monthlyRate: manToWon(Number(e.target.value) || 0) })} /></td>
+                          <td className="num mono">{won(roleCost(rl))}</td>
+                          <td><button type="button" className="btn btn-sm" onClick={() => updateRole(i, { internal: !rl.internal })}>{rl.internal ? "내부" : "외주"}</button></td>
+                          <td><button type="button" className="x" onClick={() => removeRole(i)} aria-label="삭제">×</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <datalist id="si-roles">{SI_ROLE_PRESETS.map((p) => <option key={p} value={p} />)}</datalist>
+                <div className="between" style={{ marginTop: 10 }}>
+                  <button type="button" className="btn btn-sm" onClick={addRole}>+ 역할 추가</button>
+                  <span className="small">총 공수 원가 <b>{won(r.laborCost)}</b> <span className="tiny muted">(외주 {won(r.outsourcing)} · 내부 {won(r.internalCost)})</span></span>
+                </div>
+              </div>
+            ) : (
+              <div className="row2">
+                <Row label="외주비" echo={inp.outsourcing}><Num value={wonToMan(inp.outsourcing)} onChange={(x) => setMoney("outsourcing", x)} suffix="만원" min="0" /><Confidence k="outsourcing" inp={inp} setMeasured={setMeasured} /></Row>
+                <Row label="내부공수(내 시간)" why="여기도 필수 — 내 시간은 공짜가 아닙니다." echo={inp.internalCost}><Num value={wonToMan(inp.internalCost)} onChange={(x) => setMoney("internalCost", x)} suffix="만원" min="0" /><Confidence k="internalCost" inp={inp} setMeasured={setMeasured} /></Row>
+              </div>
+            )}
             <div className="row2">
               <Row label="인프라·라이선스" echo={inp.infraLicense}><Num value={wonToMan(inp.infraLicense)} onChange={(x) => setMoney("infraLicense", x)} suffix="만원" min="0" /></Row>
               <Row label="리스크 충당" hint="추가비용 가능성 대비" echo={inp.riskReserve}><Num value={wonToMan(inp.riskReserve)} onChange={(x) => setMoney("riskReserve", x)} suffix="만원" min="0" /></Row>

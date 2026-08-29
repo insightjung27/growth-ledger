@@ -5,10 +5,15 @@ import { isoDate } from "../lib/format.js";
 
 const TABS = [
   { to: "/", label: "홈", end: true },
-  { to: "/deals", label: "딜 파이프라인" },
+  { to: "/decisions", label: "판단" },
+  { to: "/deals", label: "딜" },
   { to: "/money-test", label: "머니테스트" },
-  { to: "/weekly", label: "주간 리뷰" },
+  { to: "/team", label: "팀" },
+  { to: "/handoffs", label: "위임과제" },
+  { to: "/one-on-ones", label: "1:1" },
+  { to: "/weekly", label: "주간리뷰" },
   { to: "/growth", label: "성장" },
+  { to: "/guide", label: "가이드" },
 ];
 
 function download(text, name) {

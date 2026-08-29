@@ -13,6 +13,20 @@ export function typeOf(id) {
   return PROJECT_TYPES.find((t) => t.id === id) || PROJECT_TYPES[0];
 }
 
+// SI 공수 산정(R1): SW 노임단가처럼 등급별 월단가 기본값(예시 — 실제 연도 노임단가로 수정).
+export const SI_GRADES = [
+  { id: "초급", rate: 4800000 },
+  { id: "중급", rate: 6400000 },
+  { id: "고급", rate: 8000000 },
+  { id: "특급", rate: 9700000 },
+];
+export const SI_ROLE_PRESETS = ["기획자", "개발자", "디자이너", "PM", "QA", "퍼블리셔"];
+export function gradeRate(id) { return SI_GRADES.find((g) => g.id === id)?.rate || 6400000; }
+export function makeRole(role = "개발자", grade = "중급") {
+  return { id: "role-" + Math.random().toString(36).slice(2, 8), role, grade, count: 1, months: 6, monthlyRate: gradeRate(grade), internal: false };
+}
+export function roleCost(r) { return (Number(r.count) || 0) * (Number(r.months) || 0) * (Number(r.monthlyRate) || 0); }
+
 // 기본값(‘추정’ 라벨). 사용자가 실측(근거 포함)으로 확정하기 전까지는 전부 추정으로 취급.
 export function defaultInputs(projectType = "internal") {
   const mode = typeOf(projectType).mode;
@@ -41,6 +55,8 @@ export function defaultInputs(projectType = "internal") {
     projectType,
     name: "",
     revenue: 0,
+    // SI는 역할·등급별 공수(roles)로 원가 산정. SaaS는 lump(outsourcing/internalCost).
+    roles: projectType === "si" ? [makeRole("기획자", "중급"), makeRole("개발자", "중급")] : [],
     outsourcing: 0,
     internalCost: 0,
     infraLicense: 0,
@@ -154,13 +170,24 @@ function computeSave(inp) {
 
 function computeEarn(inp) {
   const revenue = n(inp.revenue);
-  const cost = n(inp.outsourcing) + n(inp.internalCost) + n(inp.infraLicense) + n(inp.riskReserve);
+  const roles = Array.isArray(inp.roles) ? inp.roles : [];
+  const useRoles = inp.projectType === "si" && roles.length > 0;
+  let outsourcing, internalCost, laborCost = 0;
+  if (useRoles) {
+    let ext = 0, intn = 0;
+    for (const r of roles) { const c = roleCost(r); laborCost += c; if (r.internal) intn += c; else ext += c; }
+    outsourcing = ext; internalCost = intn;
+  } else {
+    outsourcing = n(inp.outsourcing); internalCost = n(inp.internalCost); laborCost = outsourcing + internalCost;
+  }
+  const cost = outsourcing + internalCost + n(inp.infraLicense) + n(inp.riskReserve);
   const profit = revenue - cost;
   const margin = revenue > 0 ? profit / revenue : null;
   const prob = clamp01(n(inp.prob, 0));
   return {
     mode: "earn",
     revenue, cost, profit, margin, prob,
+    laborCost, outsourcing, internalCost, usedRoles: useRoles,
     weightedProfit: profit * prob,
     weightedRevenue: revenue * prob,
     confidence: confidenceOf(inp, "earn"),
