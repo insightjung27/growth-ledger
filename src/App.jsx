@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import PinGate from "./components/PinGate.jsx";
 import Layout from "./components/Layout.jsx";
 import Home from "./pages/Home.jsx";
 import Deals from "./pages/Deals.jsx";
@@ -11,6 +12,7 @@ import Growth from "./pages/Growth.jsx";
 export default function App() {
   return (
     <ErrorBoundary>
+    <PinGate>
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Home />} />
@@ -23,6 +25,7 @@ export default function App() {
         <Route path="*" element={<Home />} />
       </Route>
     </Routes>
+    </PinGate>
     </ErrorBoundary>
   );
 }
