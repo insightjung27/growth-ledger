@@ -76,9 +76,9 @@ export default function HandoffDetail() {
   }
   function setResult(patch) { set({ result: { ...result, ...patch } }); }
 
+  const canComplete = !!result.met && !!result.autonomy;
   function complete() {
-    if (!result.met) { alert("완결 결과(충족/부분/미달)를 먼저 선택하세요."); return; }
-    if (!result.autonomy) { alert("자율도(그들이 해결/개입 필요/회수)를 선택하세요."); return; }
+    if (!canComplete) return;
     set({ status: "done", completedAt: new Date().toISOString(), result: { ...result, reworkCount } });
   }
   function reopen() { set({ status: "in_progress", completedAt: null }); }
@@ -280,7 +280,10 @@ export default function HandoffDetail() {
                 <button className="btn btn-sm" onClick={reopen}>완결 취소</button>
               </>
             ) : (
-              <button className="btn btn-primary" onClick={complete}>완결 처리</button>
+              <div>
+                {!canComplete && <div className="tiny" style={{ color: "var(--amber)", marginBottom: 6 }}>결과와 자율도를 선택하면 완결</div>}
+                <button className="btn btn-primary" disabled={!canComplete} onClick={complete}>완결 처리</button>
+              </div>
             )}
           </div>
         </div>

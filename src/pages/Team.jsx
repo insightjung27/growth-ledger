@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   useStore, addTeamMember, addGoal, updateGoal, removeGoal, logGoalChange,
   addCompanyGoal, updateCompanyGoal, removeCompanyGoal, DELEGATION_LEVELS,
@@ -60,6 +60,7 @@ function LevelGauge({ current, target }) {
 }
 
 export default function Team() {
+  const nav = useNavigate();
   const members = useStore((s) => s.teamMembers).filter((m) => m.active !== false);
   const goals = useStore((s) => s.quarterlyGoals);
   const companyGoals = useStore((s) => s.companyGoals);
@@ -74,15 +75,16 @@ export default function Team() {
   const [goalModal, setGoalModal] = useState(null); // {mode:'add'|'edit', goal}
   const [cgModal, setCgModal] = useState(null); // {mode, goal}
 
-  function submitMember() {
+  function submitMember(openProfile) {
     if (!draft.name.trim()) return;
-    addTeamMember({
+    const id = addTeamMember({
       name: draft.name.trim(), area: draft.area.trim(),
       levelCurrent: Number(draft.levelCurrent), levelTarget: Number(draft.levelTarget),
       strengths: parseList(draft.strengths), growthAreas: parseList(draft.growthAreas),
     });
     setDraft({ name: "", area: "", levelCurrent: 2, levelTarget: 3, strengths: "", growthAreas: "" });
     setAdding(false);
+    if (openProfile && id) nav(`/team/${id}`);
   }
 
   // 위임수준 평균 — 표본(팀원 1명 이상) 없으면 '계측 불가'
@@ -299,11 +301,11 @@ export default function Team() {
         <Modal
           title="팀원 추가"
           onClose={() => setAdding(false)}
-          footer={<><button className="btn" onClick={() => setAdding(false)}>취소</button><button className="btn btn-primary" onClick={submitMember} disabled={!draft.name.trim()}>추가</button></>}
+          footer={<><button className="btn" onClick={() => setAdding(false)}>취소</button><button className="btn" onClick={() => submitMember(true)} disabled={!draft.name.trim()}>추가 후 프로필 채우기</button><button className="btn btn-primary" onClick={() => submitMember(false)} disabled={!draft.name.trim()}>추가</button></>}
         >
           <div className="field">
-            <label>이름</label>
-            <input className="input" autoFocus value={draft.name} placeholder="예: 김주니어" onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+            <label>이름 <span style={{ color: "var(--red)" }}>*</span></label>
+            <input className="input" autoFocus value={draft.name} placeholder="예: 김주니어" onKeyDown={(e) => { if (e.key === "Enter") submitMember(false); }} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
           </div>
           <div className="field">
             <label>담당 영역</label>
@@ -323,6 +325,9 @@ export default function Team() {
               </select>
             </div>
           </div>
+          {draft.levelTarget < draft.levelCurrent && (
+            <div className="notice warn" style={{ marginBottom: 12 }}>목표가 현재보다 낮습니다. 의도한 것이 아니라면 목표 위임수준을 다시 확인하세요.</div>
+          )}
           <div className="field">
             <label>강점 <span className="muted small">(쉼표로 구분)</span></label>
             <input className="input" value={draft.strengths} placeholder="예: 꼼꼼함, 문서화" onChange={(e) => setDraft({ ...draft, strengths: e.target.value })} />
@@ -341,6 +346,7 @@ export default function Team() {
           quarter={quarter}
           members={members}
           companyGoals={companyGoals}
+          qGoalCount={qGoals.length}
           onClose={() => setGoalModal(null)}
         />
       )}
@@ -352,7 +358,7 @@ export default function Team() {
   );
 }
 
-function GoalModal({ data, quarter, members, companyGoals, onClose }) {
+function GoalModal({ data, quarter, members, companyGoals, qGoalCount = 0, onClose }) {
   const editing = data.mode === "edit";
   const g = data.goal;
   const [form, setForm] = useState(
@@ -361,6 +367,15 @@ function GoalModal({ data, quarter, members, companyGoals, onClose }) {
       : { title: "", successMetric: "", targetValue: "", currentValue: "", status: "진행중", companyGoalId: "", ownerMemberId: "" }
   );
   const [reason, setReason] = useState("");
+  const [cgTitle, setCgTitle] = useState("");
+
+  // 회사목표 0개일 때 모달 안에서 바로 등록하고 자동 연결
+  function addInlineCg() {
+    if (!cgTitle.trim()) return;
+    const id = addCompanyGoal({ title: cgTitle.trim(), quarter });
+    setForm((f) => ({ ...f, companyGoalId: id }));
+    setCgTitle("");
+  }
 
   // 변경된 '정의' 필드 계산 (진척=currentValue 제외)
   const changed = editing
@@ -368,7 +383,7 @@ function GoalModal({ data, quarter, members, companyGoals, onClose }) {
     : [];
   const needReason = editing && changed.length > 0;
 
-  function save() {
+  function save(keepOpen) {
     if (!form.title.trim()) return;
     if (needReason && !reason.trim()) return;
     const patch = {
@@ -380,21 +395,27 @@ function GoalModal({ data, quarter, members, companyGoals, onClose }) {
       updateGoal(g.id, patch);
       // R3 — 정의 변경마다 사유와 함께 이력 기록
       changed.forEach((f) => logGoalChange(g.id, { field: f.key, from: labelFor(f.key, g[f.key], companyGoals), to: labelFor(f.key, form[f.key], companyGoals), reason: reason.trim() }));
-    } else {
-      addGoal({ ...patch, quarter });
+      onClose();
+      return;
     }
-    onClose();
+    addGoal({ ...patch, quarter });
+    if (keepOpen) {
+      // '하나 더 추가' — 폼만 리셋하고 모달 유지 (회사목표 연결은 이어가기 편하게 유지)
+      setForm({ title: "", successMetric: "", targetValue: "", currentValue: "", status: "진행중", companyGoalId: form.companyGoalId, ownerMemberId: "" });
+    } else {
+      onClose();
+    }
   }
 
   return (
     <Modal
       title={editing ? "분기목표 편집" : "분기목표 추가"}
       onClose={onClose}
-      footer={<><button className="btn" onClick={onClose}>취소</button><button className="btn btn-primary" onClick={save} disabled={!form.title.trim() || (needReason && !reason.trim())}>저장</button></>}
+      footer={<><button className="btn" onClick={onClose}>취소</button>{!editing && qGoalCount < 3 && (<button className="btn" onClick={() => save(true)} disabled={!form.title.trim()}>저장 후 하나 더</button>)}<button className="btn btn-primary" onClick={() => save(false)} disabled={!form.title.trim() || (needReason && !reason.trim())}>저장</button></>}
     >
       <div className="field">
-        <label>목표 <span className="muted small">(이번 분기 반드시 만들 결과)</span></label>
-        <input className="input" autoFocus value={form.title} placeholder="예: 결제 전환율 개선안 출시" onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        <label>목표 <span style={{ color: "var(--red)" }}>*</span> <span className="muted small">(이번 분기 반드시 만들 결과)</span></label>
+        <input className="input" autoFocus value={form.title} placeholder="예: 결제 전환율 개선안 출시" onKeyDown={(e) => { if (e.key === "Enter") save(false); }} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       </div>
       <div className="field">
         <label>성공지표</label>
@@ -403,13 +424,14 @@ function GoalModal({ data, quarter, members, companyGoals, onClose }) {
       <div className="row2">
         <div className="field">
           <label>목표값</label>
-          <input className="input" value={form.targetValue} placeholder="예: 85%" onChange={(e) => setForm({ ...form, targetValue: e.target.value })} />
+          <input className="input" inputMode="decimal" value={form.targetValue} placeholder="숫자만 (예: 85)" onChange={(e) => setForm({ ...form, targetValue: e.target.value })} />
         </div>
         <div className="field">
           <label>현재값 <span className="muted small">(진척)</span></label>
-          <input className="input" value={form.currentValue} placeholder="예: 72%" onChange={(e) => setForm({ ...form, currentValue: e.target.value })} />
+          <input className="input" inputMode="decimal" value={form.currentValue} placeholder="숫자만 (예: 72)" onChange={(e) => setForm({ ...form, currentValue: e.target.value })} />
         </div>
       </div>
+      <div className="hint" style={{ marginTop: -4, marginBottom: 12 }}>숫자만 입력하고 단위는 성공지표에 적으세요 — %(비율) / 명(인원) / 원(금액) / 건(횟수).</div>
       <div className="row2">
         <div className="field">
           <label>상태</label>
@@ -427,10 +449,20 @@ function GoalModal({ data, quarter, members, companyGoals, onClose }) {
       </div>
       <div className="field">
         <label>회사목표 연결 <span className="muted small">(정렬)</span></label>
-        <select className="select" value={form.companyGoalId} onChange={(e) => setForm({ ...form, companyGoalId: e.target.value })}>
-          <option value="">연결 안 함</option>
-          {companyGoals.map((c) => (<option key={c.id} value={c.id}>{c.title}</option>))}
-        </select>
+        {companyGoals.length === 0 ? (
+          <div className="notice info">
+            먼저 회사목표를 등록하세요. 팀 분기목표는 회사목표에서 내려와야 정렬됩니다.
+            <div className="between" style={{ gap: 8, marginTop: 8 }}>
+              <input className="input" value={cgTitle} placeholder="회사목표 (예: 결제 매출 20% 성장)" onKeyDown={(e) => { if (e.key === "Enter") addInlineCg(); }} onChange={(e) => setCgTitle(e.target.value)} />
+              <button className="btn btn-sm btn-primary" onClick={addInlineCg} disabled={!cgTitle.trim()}>회사목표 추가</button>
+            </div>
+          </div>
+        ) : (
+          <select className="select" value={form.companyGoalId} onChange={(e) => setForm({ ...form, companyGoalId: e.target.value })}>
+            <option value="">연결 안 함</option>
+            {companyGoals.map((c) => (<option key={c.id} value={c.id}>{c.title}</option>))}
+          </select>
+        )}
       </div>
 
       {needReason && (
@@ -469,8 +501,8 @@ function CompanyGoalModal({ data, quarter, onClose }) {
       footer={<><button className="btn" onClick={onClose}>취소</button><button className="btn btn-primary" onClick={save} disabled={!form.title.trim()}>저장</button></>}
     >
       <div className="field">
-        <label>회사목표</label>
-        <input className="input" autoFocus value={form.title} placeholder="예: 결제 부문 매출 20% 성장" onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        <label>회사목표 <span style={{ color: "var(--red)" }}>*</span></label>
+        <input className="input" autoFocus value={form.title} placeholder="예: 결제 부문 매출 20% 성장" onKeyDown={(e) => { if (e.key === "Enter") save(); }} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       </div>
       <div className="field">
         <label>분기</label>

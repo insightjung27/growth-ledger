@@ -33,6 +33,8 @@ export default function OneOnOnes() {
   const [newMember, setNewMember] = useState(memberFilter || "");
   const [newDate, setNewDate] = useState(isoDate());
   const [focusField, setFocusField] = useState("growthCareer");
+  const [stage, setStage] = useState(3); // 점진적 공개 단계: 0=주제/이월만 → 1아젠다 → 2액션 → 3다음이월
+  const [flash, setFlash] = useState({ field: null, msg: "", n: 0 }); // 질문 삽입 하이라이트/토스트
 
   // 진입 시 new=1이면 생성 모달 자동 오픈 + memberId 프리셀렉트(직전 미완 액션은 모달·createSession에서 buildCarry로 프리필)
   useEffect(() => {
@@ -61,6 +63,23 @@ export default function OneOnOnes() {
   }, [sessions, selId, visible, memberFilter]);
 
   const set = (patch) => sel && updateOneOnOne(sel.id, patch);
+
+  // 회차 전환 시 점진적 공개 초기화 — 새(빈) 회차는 주제/이월만, 이미 채운 회차는 전부 펼침
+  useEffect(() => {
+    if (!sel) return;
+    const hasAgenda = AGENDA_FIELDS.some((f) => (sel[f.key] || "").trim());
+    const hasActions = (sel.actionItems || []).length > 0;
+    const hasNext = (sel.nextCarry || "").trim();
+    setStage(hasNext ? 3 : hasActions ? 2 : hasAgenda ? 1 : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel && sel.id]);
+
+  // 질문 삽입 하이라이트/토스트 자동 소멸
+  useEffect(() => {
+    if (!flash.n) return;
+    const t = setTimeout(() => setFlash((s) => ({ ...s, field: null, msg: "" })), 2200);
+    return () => clearTimeout(t);
+  }, [flash.n]);
 
   // 직전 최신 회차의 미완 액션을 이월로 프리필
   function buildCarry(mid, date) {
@@ -115,6 +134,9 @@ export default function OneOnOnes() {
     const cur = sel[focusField] || "";
     const next = cur ? cur.replace(/\s*$/, "") + "\n- " + q : "- " + q;
     set({ [focusField]: next });
+    setStage((s) => Math.max(s, 1)); // 아젠다 칸이 접혀 있으면 펼쳐 보여줌
+    const label = AGENDA_FIELDS.find((f) => f.key === focusField)?.label || "";
+    setFlash({ field: focusField, msg: `‘${label}’ 칸에 질문을 넣었습니다`, n: Date.now() });
   }
 
   const noMembers = members.length === 0;
@@ -234,15 +256,22 @@ export default function OneOnOnes() {
                 </div>
               )}
 
-              {/* 아젠다 4구간 */}
-              {AGENDA_FIELDS.map((f) => (
-                <div className="field" key={f.key}>
-                  <label>{f.label} <span className="muted small">— {f.tip}</span></label>
-                  <textarea className="textarea" value={sel[f.key] || ""} placeholder={f.ph} onFocus={() => setFocusField(f.key)} onChange={(e) => set({ [f.key]: e.target.value })} />
-                </div>
-              ))}
+              {/* 아젠다 4구간 — 점진적 공개(주제·이월을 먼저 다룬 뒤 펼침) */}
+              {stage < 1 ? (
+                <button className="btn btn-sm btn-ghost" style={{ marginTop: 6 }} onClick={() => setStage(1)}>아젠다 4구간 열기 →</button>
+              ) : (
+                AGENDA_FIELDS.map((f) => (
+                  <div className="field" key={f.key}>
+                    <label>{f.label} <span className="muted small">— {f.tip}</span></label>
+                    <textarea className="textarea" value={sel[f.key] || ""} placeholder={f.ph} onFocus={() => setFocusField(f.key)} onChange={(e) => set({ [f.key]: e.target.value })} style={flash.field === f.key ? { outline: "2px solid var(--accent)", outlineOffset: 2, borderRadius: 8, background: "var(--accent-weak)" } : undefined} />
+                  </div>
+                ))
+              )}
 
               {/* 액션아이템 */}
+              {stage < 2 ? (
+                stage >= 1 && <button className="btn btn-sm btn-ghost" style={{ marginTop: 6 }} onClick={() => setStage(2)}>액션 아이템 정리 →</button>
+              ) : (
               <div className="field">
                 <div className="between">
                   <label style={{ marginBottom: 0 }}>액션 아이템</label>
@@ -270,13 +299,18 @@ export default function OneOnOnes() {
                   )}
                 </div>
               </div>
+              )}
 
               {/* 다음 회차 이월 메모 */}
+              {stage < 3 ? (
+                stage >= 2 && <button className="btn btn-sm btn-ghost" style={{ marginTop: 6 }} onClick={() => setStage(3)}>다음 회차로 넘길 것 →</button>
+              ) : (
               <div className="field">
                 <label>다음 회차로 넘길 것 <span className="muted small">(다음 1:1에서 이어갈 화두)</span></label>
                 <textarea className="textarea" value={sel.nextCarry || ""} placeholder="다음 번에 반드시 확인·이어갈 것" onChange={(e) => set({ nextCarry: e.target.value })} />
                 <div className="hint">미완 액션은 다음 회차를 만들 때 자동으로 이월 프리필됩니다.</div>
               </div>
+              )}
             </div>
           )}
         </div>
@@ -307,6 +341,10 @@ export default function OneOnOnes() {
           </div>
         </div>
       </div>
+
+      {flash.msg && (
+        <div className="notice ok" style={{ position: "fixed", left: "50%", bottom: 20, transform: "translateX(-50%)", zIndex: 60, boxShadow: "0 6px 24px rgba(0,0,0,.18)" }}>{flash.msg}</div>
+      )}
 
       {showNew && (
         <Modal

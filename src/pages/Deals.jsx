@@ -114,29 +114,33 @@ export default function Deals() {
         <Modal
           title="딜 추가"
           onClose={() => setAdding(false)}
-          footer={<><button className="btn" onClick={() => setAdding(false)}>취소</button><button className="btn btn-primary" onClick={submit} disabled={!draft.name.trim()}>추가</button></>}
+          footer={<><button className="btn" onClick={() => setAdding(false)}>취소</button><button className="btn btn-primary" onClick={submit} disabled={!draft.name.trim()} title={!draft.name.trim() ? "거래명을 입력하면 추가" : undefined}>추가</button></>}
         >
-          <div className="field">
-            <label>거래명</label>
-            <input className="input" autoFocus value={draft.name} placeholder="예: A병원 접수 시스템" onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-          </div>
-          <div className="row2">
+          <form onSubmit={(e) => { e.preventDefault(); submit(); }}>
             <div className="field">
-              <label>예상금액</label>
-              <div className="input-group">
-                <input className="input" type="number" inputMode="decimal" value={draft.amountMan} onChange={(e) => setDraft({ ...draft, amountMan: e.target.value })} />
-                <span className="suffix">만원</span>
+              <label>거래명 <span style={{ color: "var(--red)" }}>*</span></label>
+              <input className="input" autoFocus value={draft.name} placeholder="예: A병원 접수 시스템" onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+            </div>
+            <div className="row2">
+              <div className="field">
+                <label>예상금액 <span className="tiny muted">(선택)</span></label>
+                <div className="input-group">
+                  <input className="input" type="number" inputMode="decimal" placeholder="예: 40000 (=4억)" onWheel={(e) => e.currentTarget.blur()} value={draft.amountMan} onChange={(e) => setDraft({ ...draft, amountMan: e.target.value })} />
+                  <span className="suffix">만원</span>
+                </div>
+                {draft.amountMan ? <div className="hint">= {won(manToWon(draft.amountMan))}</div> : null}
+              </div>
+              <div className="field">
+                <label>단계 <span className="tiny muted">(선택)</span></label>
+                <select className="select" value={draft.stageId} onChange={(e) => setDraft({ ...draft, stageId: e.target.value })}>
+                  {DEFAULT_STAGES.filter((s) => s.id !== "lost").map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} ({Math.round(s.prob * 100)}%)</option>
+                  ))}
+                </select>
               </div>
             </div>
-            <div className="field">
-              <label>단계</label>
-              <select className="select" value={draft.stageId} onChange={(e) => setDraft({ ...draft, stageId: e.target.value })}>
-                {DEFAULT_STAGES.filter((s) => s.id !== "lost").map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({Math.round(s.prob * 100)}%)</option>
-                ))}
-              </select>
-            </div>
-          </div>
+            <button type="submit" style={{ display: "none" }} aria-hidden="true" />
+          </form>
         </Modal>
       )}
     </div>

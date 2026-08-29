@@ -46,9 +46,14 @@ function urgencyRank({ h, s }) {
   return 4;
 }
 
+// 마감 퀵칩용 — 오늘 기준 n일 뒤 ISO
+const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return isoDate(d); };
+// 이번 분기 말일 ISO
+const quarterEnd = () => { const d = new Date(); const qEndMonth = Math.floor(d.getMonth() / 3) * 3 + 2; return isoDate(new Date(d.getFullYear(), qEndMonth + 1, 0)); };
+
 const EMPTY_FORM = () => ({
   title: "", delegateType: "person", assigneeId: "", delegationLevel: 2,
-  outcome: "", metric: "", boundary: "", authority: "", deadline: "",
+  outcome: "", metric: "", boundary: "", authority: "", deadline: addDays(14),
 });
 
 export default function Handoffs() {
@@ -228,6 +233,10 @@ function HandoffWizard({ members, onClose, onDone }) {
   const [f, setF] = useState(EMPTY_FORM);
   const set = (patch) => setF((s) => ({ ...s, ...patch }));
 
+  // 작성 중(기본 프리필 외 입력)이면 확인 후 닫기
+  const isDirty = () => !!(f.title.trim() || f.assigneeId || f.outcome.trim() || f.metric.trim() || f.boundary.trim() || f.authority.trim());
+  const requestClose = () => { if (!isDirty() || confirm("작성 중인 위임을 버릴까요?")) onClose(); };
+
   const kind = delegateKind(f.delegateType);
   const needAssignee = kind === "people";
   const activeMembers = members.filter((m) => m.active !== false);
@@ -255,7 +264,7 @@ function HandoffWizard({ members, onClose, onDone }) {
 
   const footer = (
     <>
-      <button className="btn" onClick={() => (step === 0 ? onClose() : setStep((s) => s - 1))}>{step === 0 ? "취소" : "이전"}</button>
+      <button className="btn" onClick={() => (step === 0 ? requestClose() : setStep((s) => s - 1))}>{step === 0 ? "취소" : "이전"}</button>
       {step < 2 ? (
         <button className="btn btn-primary" disabled={step === 0 ? !canNext0 : !canNext1} onClick={() => setStep((s) => s + 1)}>다음</button>
       ) : (
@@ -265,7 +274,7 @@ function HandoffWizard({ members, onClose, onDone }) {
   );
 
   return (
-    <Modal title="위임 넘기기 — 6요소 지시" onClose={onClose} footer={footer}>
+    <Modal title="위임 넘기기 — 6요소 지시" onClose={requestClose} footer={footer}>
       <div className="steps">
         {STEP_LABELS.map((_, i) => (<div key={i} className={"st" + (i <= step ? " on" : "")} />))}
       </div>
@@ -343,6 +352,11 @@ function HandoffWizard({ members, onClose, onDone }) {
           <div className="field">
             <label>마감 (DEADLINE) *</label>
             <input className="input" type="date" value={f.deadline} onChange={(e) => set({ deadline: e.target.value })} />
+            <div className="tagset" style={{ marginTop: 6 }}>
+              {[["오늘", addDays(0)], ["1주", addDays(7)], ["2주", addDays(14)], ["분기말", quarterEnd()]].map(([label, d]) => (
+                <button key={label} type="button" className={f.deadline === d ? "on" : ""} onClick={() => set({ deadline: d })}>{label}</button>
+              ))}
+            </div>
           </div>
           {!canSave && <div className="tiny" style={{ color: "var(--amber)" }}>결과·지표·권한·마감{needAssignee ? "·담당" : ""}은 필수입니다.</div>}
         </div>

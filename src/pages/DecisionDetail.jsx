@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useStore, updateDecision, removeDecision, DECISION_TYPES, uid, addMoneyTest, getMoneyTest } from "../lib/store.js";
 import { defaultInputs } from "../lib/money.js";
@@ -65,6 +65,11 @@ export default function DecisionDetail() {
   const [optDraft, setOptDraft] = useState({ label: "", note: "" });
   const [fmDraft, setFmDraft] = useState({ cause: "", mitigation: "" });
   const [naDraft, setNaDraft] = useState({ what: "", owner: "본인", due: "", linkType: "", linkId: "" });
+  const [edit, setEdit] = useState(null); // { kind, id } 인라인 편집 대상
+  const critRef = useRef(null);
+  const optRef = useRef(null);
+  const fmRef = useRef(null);
+  const naRef = useRef(null);
 
   if (!dec) {
     return (
@@ -99,11 +104,48 @@ export default function DecisionDetail() {
     (dec.prediction.target || "").trim() &&
     (!isIrreversible || premortemOk);
 
+  const decideChecks = [
+    { ok: !!dec.decision.chosenOptionId, label: "옵션 선택" },
+    { ok: !!(dec.decision.rationale || "").trim(), label: "결정 근거" },
+    { ok: !!(dec.prediction.expected || "").trim(), label: "기대 결과" },
+    { ok: !!(dec.prediction.target || "").trim(), label: "측정 임계값" },
+    ...(isIrreversible ? [{ ok: premortemOk, label: "프리모템(실패 시나리오+킬)" }] : []),
+  ];
+
+  // ── 인라인 편집(항목 제목)
+  function saveEdit(kind, id, raw) {
+    const v = (raw || "").trim();
+    if (kind === "crit") set({ criteria: dec.criteria.map((c) => (c.id === id ? { ...c, text: v || c.text } : c)) });
+    else if (kind === "opt") set({ options: options.map((o) => (o.id === id ? { ...o, label: v || o.label } : o)) });
+    else if (kind === "na") set({ nextActions: dec.nextActions.map((a) => (a.id === id ? { ...a, what: v || a.what } : a)) });
+    else if (kind === "fm") setPremortem({ failureModes: (dec.premortem?.failureModes || []).map((f) => (f.id === id ? { ...f, cause: v || f.cause } : f)) });
+    setEdit(null);
+  }
+  const renderTitle = ({ kind, id, value, editable, style, children }) => {
+    if (edit && edit.kind === kind && edit.id === id) {
+      return (
+        <input
+          className="input" autoFocus defaultValue={value} style={{ padding: "4px 8px", ...style }}
+          onBlur={(e) => saveEdit(kind, id, e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") setEdit(null); }}
+        />
+      );
+    }
+    return (
+      <div className="li-title" style={{ ...style, cursor: editable ? "pointer" : undefined }}
+        title={editable ? "클릭해 수정" : undefined}
+        onClick={editable ? () => setEdit({ kind, id }) : undefined}>
+        {value}{children}
+      </div>
+    );
+  };
+
   // ── 기준(criteria)
   function addCriterion() {
     if (!critText.trim() || criteriaLocked) return;
     set({ criteria: [...(dec.criteria || []), { id: uid(), text: critText.trim(), met: "", evidence: "" }] });
     setCritText("");
+    critRef.current?.focus();
   }
   function setCritMet(cid, met) { set({ criteria: dec.criteria.map((c) => (c.id === cid ? { ...c, met } : c)) }); }
   function setCritEvidence(cid, evidence) { set({ criteria: dec.criteria.map((c) => (c.id === cid ? { ...c, evidence } : c)) }); }
@@ -115,12 +157,17 @@ export default function DecisionDetail() {
     if (dec.status === "draft") patch.status = "verifying";
     set(patch);
   }
+  function unlockCriteria() {
+    if (decided) return;
+    set({ criteriaLockedAt: null });
+  }
 
   // ── 옵션(options)
   function addOption() {
     if (!optDraft.label.trim()) return;
     set({ options: [...options, { id: uid(), label: optDraft.label.trim(), note: optDraft.note.trim() }] });
     setOptDraft({ label: "", note: "" });
+    optRef.current?.focus();
   }
   function rmOption(oid) {
     if (decided) return;
@@ -146,6 +193,7 @@ export default function DecisionDetail() {
     if (!fmDraft.cause.trim()) return;
     setPremortem({ failureModes: [...(dec.premortem?.failureModes || []), { id: uid(), cause: fmDraft.cause.trim(), mitigation: fmDraft.mitigation.trim() }] });
     setFmDraft({ cause: "", mitigation: "" });
+    fmRef.current?.focus();
   }
   function rmFailureMode(fid) { setPremortem({ failureModes: (dec.premortem?.failureModes || []).filter((f) => f.id !== fid) }); }
 
@@ -163,12 +211,18 @@ export default function DecisionDetail() {
     set(patch);
   }
   function startExecution() { set({ status: "executing" }); }
+  function setReviewInDays(n) {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    set({ reviewDate: isoDate(d) });
+  }
 
   // ── 실행(nextActions)
   function addNextAction() {
     if (!naDraft.what.trim()) return;
     set({ nextActions: [...(dec.nextActions || []), { id: uid(), what: naDraft.what.trim(), owner: naDraft.owner.trim() || "본인", due: naDraft.due, linkType: naDraft.linkType, linkId: naDraft.linkId, done: false }] });
     setNaDraft({ what: "", owner: "본인", due: "", linkType: "", linkId: "" });
+    naRef.current?.focus();
   }
   function toggleNA(aid) { set({ nextActions: dec.nextActions.map((a) => (a.id === aid ? { ...a, done: !a.done } : a)) }); }
   function rmNA(aid) { set({ nextActions: dec.nextActions.filter((a) => a.id !== aid) }); }
@@ -198,7 +252,7 @@ export default function DecisionDetail() {
         <div className="section-title">1. 작성 — 무엇을 판단하나</div>
         <div className="panel panel-pad">
           <div className="field">
-            <label>판단명</label>
+            <label>판단명<span style={{ color: "var(--red)" }}> *</span></label>
             <input className="input" value={dec.title} placeholder="예: A병원 접수 SI를 수주할 것인가" onChange={(e) => set({ title: e.target.value })} />
           </div>
           <div className="row2">
@@ -221,11 +275,11 @@ export default function DecisionDetail() {
 
           {/* 기준(criteria) */}
           <div className="field" style={{ marginBottom: 8 }}>
-            <label>판단 기준 (무엇이 충족되면 Yes/No)</label>
+            <label>판단 기준 (무엇이 충족되면 Yes/No)<span style={{ color: "var(--red)" }}> *</span></label>
             <div className="notice info" style={{ marginBottom: 10 }}>{DECISION_FRAMES.criteria}. <b>옵션을 평가하기 전에</b> 기준을 동결해, 결정한 뒤 합리화하는 것을 막습니다.</div>
             {!criteriaLocked ? (
               <div className="between" style={{ gap: 8, marginBottom: 10 }}>
-                <input className="input" value={critText} placeholder="예: 프로젝트에 3천만원 이상 남는다" onChange={(e) => setCritText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCriterion()} />
+                <input ref={critRef} className="input" value={critText} placeholder="예: 프로젝트에 3천만원 이상 남는다" onChange={(e) => setCritText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addCriterion()} />
                 <button className="btn btn-primary btn-sm" onClick={addCriterion}>추가</button>
               </div>
             ) : null}
@@ -236,7 +290,7 @@ export default function DecisionDetail() {
                 {dec.criteria.map((c) => (
                   <div key={c.id} className="li" style={{ alignItems: "flex-start" }}>
                     <div className="li-main">
-                      <div className="li-title">{c.text}</div>
+                      {renderTitle({ kind: "crit", id: c.id, value: c.text, editable: !criteriaLocked })}
                       {criteriaLocked ? (
                         <div className="gap-wrap" style={{ marginTop: 6 }}>
                           <div className="seg">
@@ -255,16 +309,21 @@ export default function DecisionDetail() {
             {!criteriaLocked ? (
               <button className="btn btn-sm" style={{ marginTop: 12 }} onClick={lockCriteria} disabled={!(dec.criteria || []).length}>🔒 옵션 평가 시작 (기준 동결)</button>
             ) : (
-              <div className="notice ok" style={{ marginTop: 12 }}>기준 동결됨 · {new Date(dec.criteriaLockedAt).toLocaleString("ko-KR")} — 이제 기준은 수정할 수 없습니다.</div>
+              <>
+                <div className="notice ok" style={{ marginTop: 12 }}>기준 동결됨 · {new Date(dec.criteriaLockedAt).toLocaleString("ko-KR")} — 이제 기준은 수정할 수 없습니다.</div>
+                {!decided && (dec.status === "draft" || dec.status === "verifying") ? (
+                  <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={unlockCriteria}>🔓 동결 해제</button>
+                ) : null}
+              </>
             )}
           </div>
 
           {/* 옵션 */}
           <div className="field" style={{ marginBottom: 8 }}>
-            <label>옵션 (검토할 선택지)</label>
+            <label>옵션 (검토할 선택지)<span style={{ color: "var(--red)" }}> *</span></label>
             {!decided ? (
               <div className="row2" style={{ marginBottom: 10 }}>
-                <input className="input" value={optDraft.label} placeholder="옵션 이름 (예: 수주한다)" onChange={(e) => setOptDraft({ ...optDraft, label: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addOption()} />
+                <input ref={optRef} className="input" value={optDraft.label} placeholder="옵션 이름 (예: 수주한다)" onChange={(e) => setOptDraft({ ...optDraft, label: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addOption()} />
                 <div className="between" style={{ gap: 8 }}>
                   <input className="input" value={optDraft.note} placeholder="메모(선택)" onChange={(e) => setOptDraft({ ...optDraft, note: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addOption()} />
                   <button className="btn btn-primary btn-sm" onClick={addOption}>추가</button>
@@ -277,7 +336,7 @@ export default function DecisionDetail() {
               <div className="stack">
                 {options.map((o) => (
                   <div key={o.id} className="li">
-                    <div className="li-main"><div className="li-title">{o.label}{dec.decision.chosenOptionId === o.id ? <span className="badge green" style={{ marginLeft: 6 }}>선택됨</span> : null}</div>{o.note ? <div className="li-sub">{o.note}</div> : null}</div>
+                    <div className="li-main">{renderTitle({ kind: "opt", id: o.id, value: o.label, editable: !decided, children: dec.decision.chosenOptionId === o.id ? <span className="badge green" style={{ marginLeft: 6 }}>선택됨</span> : null })}{o.note ? <div className="li-sub">{o.note}</div> : null}</div>
                     {!decided ? <button className="x" onClick={() => rmOption(o.id)} aria-label="삭제">×</button> : null}
                   </div>
                 ))}
@@ -339,7 +398,7 @@ export default function DecisionDetail() {
             <label>프리모템 — 이게 실패한다면 왜일까 {isIrreversible ? <span className="badge red" style={{ marginLeft: 4 }}>되돌릴 수 없음 → 필수</span> : <span className="tiny muted">(선택)</span>}</label>
             <div className="hint" style={{ marginBottom: 10 }}>{DECISION_FRAMES.premortem}</div>
             <div className="row2" style={{ marginBottom: 8 }}>
-              <input className="input" value={fmDraft.cause} placeholder="실패 원인 (예: 유지보수 인력 이탈)" onChange={(e) => setFmDraft({ ...fmDraft, cause: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addFailureMode()} />
+              <input ref={fmRef} className="input" value={fmDraft.cause} placeholder="실패 원인 (예: 유지보수 인력 이탈)" onChange={(e) => setFmDraft({ ...fmDraft, cause: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addFailureMode()} />
               <div className="between" style={{ gap: 8 }}>
                 <input className="input" value={fmDraft.mitigation} placeholder="완화책(선택)" onChange={(e) => setFmDraft({ ...fmDraft, mitigation: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addFailureMode()} />
                 <button className="btn btn-primary btn-sm" onClick={addFailureMode}>추가</button>
@@ -351,7 +410,7 @@ export default function DecisionDetail() {
               <div className="stack">
                 {dec.premortem.failureModes.map((f) => (
                   <div key={f.id} className="li">
-                    <div className="li-main"><div className="li-title">{f.cause}</div>{f.mitigation ? <div className="li-sub">완화: {f.mitigation}</div> : null}</div>
+                    <div className="li-main">{renderTitle({ kind: "fm", id: f.id, value: f.cause, editable: true })}{f.mitigation ? <div className="li-sub">완화: {f.mitigation}</div> : null}</div>
                     <button className="x" onClick={() => rmFailureMode(f.id)} aria-label="삭제">×</button>
                   </div>
                 ))}
@@ -393,22 +452,35 @@ export default function DecisionDetail() {
                 <label>예측 (결정 시 동결 — 이후 수정 불가)</label>
                 <div className="notice info" style={{ marginBottom: 10 }}>대조가 되려면 예측이 <b>측정 가능</b>해야 합니다. "잘 될 것"이 아니라 "무엇이 얼마가 되면 성공"인지 임계값을 적으세요.</div>
                 <div className="field">
-                  <label className="small muted">기대 결과 (측정 가능한 서술)</label>
+                  <label className="small muted">기대 결과 (측정 가능한 서술)<span style={{ color: "var(--red)" }}> *</span></label>
                   <input className="input" value={dec.prediction.expected} disabled={predictionLocked} placeholder="예: 6개월 내 월 운영비 절감이 발생한다" onChange={(e) => setPred({ expected: e.target.value })} />
                 </div>
                 <div className="field">
-                  <label className="small muted">측정 임계값 (target · 수치/기준)</label>
+                  <label className="small muted">측정 임계값 (target · 수치/기준)<span style={{ color: "var(--red)" }}> *</span></label>
                   <input className="input" value={dec.prediction.target} disabled={predictionLocked} placeholder="예: 월 300만원 이상 절감 / 채택률 60% 이상" onChange={(e) => setPred({ target: e.target.value })} />
                 </div>
                 <div className="field" style={{ marginBottom: 0 }}>
-                  <label className="small muted">신뢰도 — {dec.prediction.confidence}%</label>
-                  <input type="range" min="0" max="100" step="5" style={{ width: "100%" }} value={dec.prediction.confidence} disabled={predictionLocked} onChange={(e) => setPred({ confidence: Number(e.target.value) })} />
+                  <label className="small muted">신뢰도 (0을 기준점 삼지 말고 실제 확신을 직접 입력)</label>
+                  <div className="between" style={{ gap: 10 }}>
+                    <input type="range" min="0" max="100" step="5" style={{ flex: 1 }} value={dec.prediction.confidence} disabled={predictionLocked} onChange={(e) => setPred({ confidence: Number(e.target.value) })} />
+                    <input className="input" type="number" min="0" max="100" step="5" style={{ width: 80 }} value={dec.prediction.confidence} disabled={predictionLocked} onChange={(e) => setPred({ confidence: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} />
+                    <span className="small muted">%</span>
+                  </div>
                 </div>
               </div>
 
               <div className="field">
                 <label>대조 예정일 (짧게 — 주/격주 권장)</label>
-                <input className="input" type="date" value={dec.reviewDate || ""} disabled={decided} onChange={(e) => set({ reviewDate: e.target.value })} />
+                <div className="between" style={{ gap: 8 }}>
+                  <input className="input" type="date" value={dec.reviewDate || ""} disabled={decided} onChange={(e) => set({ reviewDate: e.target.value })} />
+                  {!decided ? (
+                    <div className="gap-wrap" style={{ gap: 6 }}>
+                      <button type="button" className="btn btn-sm" onClick={() => setReviewInDays(7)}>+1주</button>
+                      <button type="button" className="btn btn-sm" onClick={() => setReviewInDays(14)}>+2주</button>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="hint">비워두면 확정 시 7일 뒤로 자동 설정됩니다.</div>
               </div>
 
               {isIrreversible && !premortemOk ? (
@@ -416,10 +488,19 @@ export default function DecisionDetail() {
               ) : null}
 
               {!decided ? (
-                <div className="between" style={{ gap: 10 }}>
-                  <button className="btn btn-primary btn-block" onClick={confirmDecision} disabled={!canDecide}>결정 확정 · 예측 동결</button>
-                  <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>동결 후 수정 불가</span>
-                </div>
+                <>
+                  {decideChecks.some((c) => !c.ok) ? (
+                    <div className="notice warn" style={{ marginBottom: 10 }}>
+                      확정하려면 남은 항목: {decideChecks.filter((c) => !c.ok).map((c) => (
+                        <span key={c.label} style={{ color: "var(--red)", fontWeight: 700, marginRight: 10 }}>• {c.label}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="between" style={{ gap: 10 }}>
+                    <button className="btn btn-primary btn-block" onClick={confirmDecision} disabled={!canDecide}>결정 확정 · 예측 동결</button>
+                    <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>동결 후 수정 불가</span>
+                  </div>
+                </>
               ) : (
                 <div className="notice ok">
                   결정 확정됨 · {new Date(dec.decidedAt).toLocaleString("ko-KR")}<br />
@@ -438,7 +519,7 @@ export default function DecisionDetail() {
           <div className="panel panel-pad">
             <div className="notice info" style={{ marginBottom: 12 }}>판단은 <b>실행으로 연결</b>돼야 완결됩니다. 딜·위임과제로 넘기면 트레이스가 남습니다(끊겨도 판단 자체는 완결).</div>
             <div className="field">
-              <input className="input" value={naDraft.what} placeholder="다음 행동 (예: 계약서 초안 검토 요청)" onChange={(e) => setNaDraft({ ...naDraft, what: e.target.value })} />
+              <input ref={naRef} className="input" value={naDraft.what} placeholder="다음 행동 (예: 계약서 초안 검토 요청)" onChange={(e) => setNaDraft({ ...naDraft, what: e.target.value })} onKeyDown={(e) => e.key === "Enter" && addNextAction()} />
             </div>
             <div className="row3" style={{ marginBottom: 10 }}>
               <input className="input" value={naDraft.owner} placeholder="담당" onChange={(e) => setNaDraft({ ...naDraft, owner: e.target.value })} />
@@ -477,7 +558,7 @@ export default function DecisionDetail() {
                     <div key={a.id} className="li">
                       <button className="chip" style={{ cursor: "pointer", background: a.done ? "var(--green-bg)" : "var(--paper-3)", color: a.done ? "var(--green)" : "var(--muted)" }} onClick={() => toggleNA(a.id)} aria-pressed={a.done}>{a.done ? "완료 ✓" : "완료 체크"}</button>
                       <div className="li-main">
-                        <div className="li-title" style={{ textDecoration: a.done ? "line-through" : "none" }}>{a.what}</div>
+                        {renderTitle({ kind: "na", id: a.id, value: a.what, editable: true, style: { textDecoration: a.done ? "line-through" : "none" } })}
                         <div className="li-sub">
                           {a.owner || "본인"}{a.due ? ` · ${a.due}` : ""}
                           {linked ? <> · <Link to={(a.linkType === "deal" ? "/deals/" : "/handoffs/") + a.linkId}>{a.linkType === "deal" ? "딜" : "위임과제"}: {linked.name || linked.title || "열기"}</Link></> : a.linkType && a.linkId ? " · (연결 끊김)" : null}

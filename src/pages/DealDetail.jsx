@@ -82,6 +82,10 @@ export default function DealDetail() {
         <button className="btn btn-danger" onClick={() => { if (confirm("이 딜을 삭제할까요?")) { removeDeal(deal.id); nav("/deals"); } }}>삭제</button>
       </div>
 
+      <div className="section">
+        <div className="notice info">이 화면은 입력 즉시 자동 저장됩니다. 따로 저장 버튼을 누르지 않아도 됩니다.</div>
+      </div>
+
       {isClosed ? (
         <div className="section">
           <div className={"notice " + (deal.stageId === "won" ? "ok" : "warn")}>
@@ -100,7 +104,7 @@ export default function DealDetail() {
           <div className="field">
             <label>예상금액</label>
             <div className="input-group">
-              <input className="input" type="number" inputMode="decimal" value={wonToMan(deal.amount) || ""} onChange={(e) => set({ amount: manToWon(e.target.value || 0) })} />
+              <input className="input" type="number" inputMode="decimal" onWheel={(e) => e.currentTarget.blur()} value={wonToMan(deal.amount) || ""} onChange={(e) => set({ amount: manToWon(e.target.value || 0) })} />
               <span className="suffix">만원</span>
             </div>
           </div>
@@ -194,8 +198,11 @@ export default function DealDetail() {
           </div>
           <div className="field">
             <label>마지막 접촉일</label>
-            <input className="input" type="date" value={(deal.lastContact || "").slice(0, 10)} onChange={(e) => set({ lastContact: e.target.value ? new Date(e.target.value).toISOString() : deal.lastContact })} />
-            <div className="hint">비워두면 방치일수 계산이 안 됩니다. 접촉할 때마다 갱신하세요.</div>
+            <div className="gap-wrap">
+              <input className="input" type="date" style={{ maxWidth: 200 }} value={(deal.lastContact || "").slice(0, 10)} onChange={(e) => set({ lastContact: e.target.value ? new Date(e.target.value).toISOString() : deal.lastContact })} />
+              <button className="btn btn-sm btn-ghost" onClick={() => set({ lastContact: new Date().toISOString() })}>오늘로</button>
+            </div>
+            <div className="hint">비워두면 방치일수 계산이 안 됩니다. 기본값=딜 생성일. 접촉할 때마다 '오늘로'로 갱신하세요.</div>
           </div>
         </div>
       </div>
@@ -205,7 +212,7 @@ export default function DealDetail() {
         <div className="section-title">사업성 검토 (P&amp;L · 머니테스트)</div>
         <div className="panel panel-pad">
           {needsPnl ? (
-            <div className="notice warn" style={{ marginBottom: 14 }}>제안 단계 이상인데 P&amp;L(머니테스트)이 없습니다. '4억짜리인가'가 아니라 '얼마 남길 건인가'를 먼저 확인하세요.</div>
+            <div className="notice warn" style={{ marginBottom: 14 }}>제안 단계 이상인데 P&amp;L(머니테스트)이 없습니다. '4억짜리인가'가 아니라 '얼마 남길 건인가'를 먼저 확인하세요. (나중에 해도 됩니다.)</div>
           ) : null}
           {mt ? (
             <div className="between">

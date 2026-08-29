@@ -9,12 +9,14 @@ import AutoSaved from "../components/AutoSaved.jsx";
 const DRAFT_KEY = "growth-ledger:mt-draft";
 
 /* 소수점·자릿수 보존 숫자 입력 */
-function Num({ value, onChange, suffix, placeholder, min }) {
-  const [txt, setTxt] = useState(value == null || value === "" ? "" : String(value));
+function Num({ value, onChange, suffix, placeholder, min, inputMode = "decimal" }) {
+  // 외부에서 들어온 0(기본·프리필)은 빈칸으로 표시하고 계산은 0을 유지한다. 사용자가 직접 "0"을 치면 그대로 보인다.
+  const [txt, setTxt] = useState(value == null || value === "" || Number(value) === 0 ? "" : String(value));
   useEffect(() => {
     const a = txt === "" ? null : Number(txt);
     const b = value === "" || value == null ? null : Number(value);
-    if (a !== b) setTxt(b == null ? "" : String(b));
+    if (a === b) return;
+    setTxt(b == null || b === 0 ? "" : String(b));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
   function handle(e) {
@@ -26,7 +28,8 @@ function Num({ value, onChange, suffix, placeholder, min }) {
   }
   return (
     <div className="input-group">
-      <input className="input" type="number" inputMode="decimal" min={min} value={txt} placeholder={placeholder} onChange={handle} />
+      <input className="input" type="number" inputMode={inputMode} min={min} value={txt} placeholder={placeholder || "0"}
+        onFocus={(e) => e.target.select()} onWheel={(e) => e.currentTarget.blur()} onChange={handle} />
       {suffix && <span className="suffix">{suffix}</span>}
     </div>
   );
@@ -64,6 +67,9 @@ function Confidence({ k, inp, setMeasured }) {
 }
 
 const SAVE_STEPS = ["문제 돈크기", "해결 임팩트", "투자"];
+const REQ = <span style={{ color: "var(--red)" }} title="판정 필수">*</span>;
+const OPT = <span className="tiny muted" style={{ fontWeight: 400 }}> (선택)</span>;
+const EG = <span className="badge gray" style={{ marginTop: 6 }}>예시값 — 실제 값으로 바꾸세요</span>;
 
 export default function MoneyTest() {
   const { id } = useParams();
@@ -81,6 +87,9 @@ export default function MoneyTest() {
   const [savedId, setSavedId] = useState(existing ? existing.id : null);
   const [dirty, setDirty] = useState(false);
   const [step, setStep] = useState(0);
+  const [justSaved, setJustSaved] = useState(false);
+  // 값이 시드된 기본값과 같으면 '예시값' 배지 노출(사용자가 바꾸면 사라짐)
+  const eg = (k, dv) => (inp[k] === dv ? EG : null);
 
   const mode = typeOf(inp.projectType).mode;
   const r = useMemo(() => compute(inp), [inp]);
@@ -100,7 +109,7 @@ export default function MoneyTest() {
     return () => window.removeEventListener("beforeunload", onBU);
   }, [dirty]);
 
-  const set = (patch) => { setInp((s) => ({ ...s, ...patch })); setDirty(true); };
+  const set = (patch) => { setInp((s) => ({ ...s, ...patch })); setDirty(true); setJustSaved(false); };
   const setMeasured = (k, val) => setInp((s) => ({ ...s, measured: { ...s.measured, [k]: val || undefined } }));
   const setMoney = (k, man) => set({ [k]: man === "" ? 0 : manToWon(man) });
   const setRate = (k, p) => set({ [k]: p === "" ? (k === "adoptionRate" ? null : 0) : Math.max(0, Math.min(100, Number(p))) / 100 });
@@ -113,7 +122,7 @@ export default function MoneyTest() {
     if (savedId) updateMoneyTest(savedId, { inputs: inp, name: inp.name, verdict: r.verdict.light, projectType: inp.projectType });
     else { const nid = addMoneyTest({ inputs: inp, name: inp.name, verdict: r.verdict.light, projectType: inp.projectType }); setSavedId(nid); try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
     setDirty(false);
-    alert("머니테스트를 저장했습니다.");
+    setJustSaved(true);
   }
   function newTest() {
     if (dirty && !confirm("저장하지 않은 입력이 있습니다. 새로 시작할까요?")) return;
@@ -176,28 +185,32 @@ export default function MoneyTest() {
           {step === 0 && (
             <div className="panel panel-pad">
               <div className="row2">
-                <Row label="대상 수" hint="이 일을 겪는 사람/건수">
-                  <Num value={inp.targetCount} onChange={(x) => set({ targetCount: x })} suffix="명·건" min="0" />
+                <Row label={<>대상 수 {REQ}</>} hint="이 일을 겪는 사람/건수">
+                  <Num value={inp.targetCount} onChange={(x) => set({ targetCount: x })} suffix="명·건" min="0" inputMode="numeric" />
+                  {eg("targetCount", 1)}
                 </Row>
-                <Row label="연 발생 빈도" hint="1대상당 1년에 몇 번(매일≈250, 매주≈52, 매월=12)">
-                  <Num value={inp.freqPerYear} onChange={(x) => set({ freqPerYear: x })} suffix="회/년" min="0" />
+                <Row label={<>연 발생 빈도 {REQ}</>} hint="1대상당 1년에 몇 번(매일≈250, 매주≈52, 매월=12)">
+                  <Num value={inp.freqPerYear} onChange={(x) => set({ freqPerYear: x })} suffix="회/년" min="0" inputMode="numeric" />
+                  {eg("freqPerYear", 250)}
                   <Confidence k="freqPerYear" inp={inp} setMeasured={setMeasured} />
                 </Row>
               </div>
               <div className="row2">
-                <Row label="건당 소요 시간" hint="한 번에 걸리는 시간">
-                  <Num value={inp.minutesPerEvent} onChange={(x) => set({ minutesPerEvent: x })} suffix="분" min="0" />
+                <Row label={<>건당 소요 시간 {REQ}</>} hint="한 번에 걸리는 시간">
+                  <Num value={inp.minutesPerEvent} onChange={(x) => set({ minutesPerEvent: x })} suffix="분" min="0" inputMode="numeric" />
+                  {eg("minutesPerEvent", 30)}
                 </Row>
-                <Row label="부담원가 시급" why="간접비(4대보험 등) 포함 시급 — 여기에 부대비를 또 얹지 않습니다." echo={inp.loadedHourlyWage}>
-                  <Num value={inp.loadedHourlyWage} onChange={(x) => set({ loadedHourlyWage: x })} suffix="원/시간" min="0" />
+                <Row label={<>부담원가 시급 {REQ}</>} why="간접비(4대보험 등) 포함 시급 — 여기에 부대비를 또 얹지 않습니다." echo={inp.loadedHourlyWage}>
+                  <Num value={inp.loadedHourlyWage} onChange={(x) => set({ loadedHourlyWage: x })} suffix="원/시간" min="0" inputMode="numeric" />
+                  {eg("loadedHourlyWage", 35000)}
                   <Confidence k="loadedHourlyWage" inp={inp} setMeasured={setMeasured} />
                 </Row>
               </div>
               <div className="row2">
-                <Row label="건당 부대비용" hint="민원 처리 등 건마다 드는 추가비(없으면 0)" echo={inp.complaintPerEvent}>
+                <Row label={<>건당 부대비용 {OPT}</>} hint="민원 처리 등 건마다 드는 추가비(없으면 0)" echo={inp.complaintPerEvent}>
                   <Num value={wonToMan(inp.complaintPerEvent)} onChange={(x) => setMoney("complaintPerEvent", x)} suffix="만원/건" min="0" />
                 </Row>
-                <Row label="기간총액 손실" why="이탈·기회손실처럼 이미 '연 총액'인 손실. 빈도로 다시 곱하지 않습니다." echo={inp.periodTotalLoss}>
+                <Row label={<>기간총액 손실 {OPT}</>} why="이탈·기회손실처럼 이미 '연 총액'인 손실. 빈도로 다시 곱하지 않습니다." echo={inp.periodTotalLoss}>
                   <Num value={wonToMan(inp.periodTotalLoss)} onChange={(x) => setMoney("periodTotalLoss", x)} suffix="만원/년" min="0" />
                 </Row>
               </div>
@@ -208,23 +221,21 @@ export default function MoneyTest() {
           {step === 1 && (
             <div className="panel panel-pad">
               <div className="row2">
-                <Row label="절감률" why="자동화로 이 손해가 몇 % 줄어드는지.">
-                  <Num value={inp.reductionRate == null ? "" : Math.round(inp.reductionRate * 100)} onChange={(x) => setRate("reductionRate", x)} suffix="%" min="0" />
+                <Row label={<>절감률 {REQ}</>} why="자동화로 이 손해가 몇 % 줄어드는지.">
+                  <Num value={inp.reductionRate == null ? "" : Math.round(inp.reductionRate * 100)} onChange={(x) => setRate("reductionRate", x)} suffix="%" min="0" inputMode="numeric" />
+                  {inp.reductionRate === 0.6 && EG}
                   <Confidence k="reductionRate" inp={inp} setMeasured={setMeasured} />
                 </Row>
-                <Row label="채택률" why="실제로 얼마나 잘 쓰일지 — 결과를 가장 크게 좌우합니다. 몰라도 됩니다(=60% 가정, 판정은 노랑 상한).">
-                  <Num value={inp.adoptionRate == null ? "" : Math.round(inp.adoptionRate * 100)} onChange={(x) => setRate("adoptionRate", x)} suffix="%" min="0" placeholder="비우면 60% 가정" />
-                  <div className="gap-wrap" style={{ marginTop: 8 }}>
-                    <span className={"dunno" + (inp.adoptionRate == null ? "" : " off")} onClick={() => set({ adoptionRate: null })}>모르겠어요</span>
-                    {inp.adoptionRate != null && <Confidence k="adoptionRate" inp={inp} setMeasured={setMeasured} />}
-                  </div>
+                <Row label={<>채택률 {OPT}</>} why="실제로 얼마나 잘 쓰일지 — 결과를 가장 크게 좌우합니다. 비우면 '모름'으로 보고 60%를 가정합니다(판정은 노랑 상한).">
+                  <Num value={inp.adoptionRate == null ? "" : Math.round(inp.adoptionRate * 100)} onChange={(x) => setRate("adoptionRate", x)} suffix="%" min="0" inputMode="numeric" placeholder="비우면 모름 = 60% 가정" />
+                  {inp.adoptionRate != null && <Confidence k="adoptionRate" inp={inp} setMeasured={setMeasured} />}
                 </Row>
               </div>
               <div className="row2">
-                <Row label="첫해 효과(램프업)" hint="도입 첫해엔 효과가 덜 남(기본 60%)">
-                  <Num value={inp.rampupFactor == null ? "" : Math.round(inp.rampupFactor * 100)} onChange={(x) => setRate("rampupFactor", x)} suffix="%" min="0" />
+                <Row label={<>첫해 효과(램프업) {OPT}</>} hint="도입 첫해엔 효과가 덜 남(기본 60%)">
+                  <Num value={inp.rampupFactor == null ? "" : Math.round(inp.rampupFactor * 100)} onChange={(x) => setRate("rampupFactor", x)} suffix="%" min="0" inputMode="numeric" />
                 </Row>
-                <Row label="연 유지·운영비" hint="도입 후 매년 드는 유지비(없으면 0)" echo={inp.annualMaintenanceOpex}>
+                <Row label={<>연 유지·운영비 {OPT}</>} hint="도입 후 매년 드는 유지비(없으면 0)" echo={inp.annualMaintenanceOpex}>
                   <Num value={wonToMan(inp.annualMaintenanceOpex)} onChange={(x) => setMoney("annualMaintenanceOpex", x)} suffix="만원/년" min="0" />
                 </Row>
               </div>
@@ -239,9 +250,13 @@ export default function MoneyTest() {
                   <Num value={wonToMan(inp.buildCost)} onChange={(x) => setMoney("buildCost", x)} suffix="만원" min="0" />
                   <Confidence k="buildCost" inp={inp} setMeasured={setMeasured} />
                 </Row>
-                <Row label="내 시간·내부공수" why="'이미 있으니 공짜'라는 착각을 막기 위해 반드시 넣습니다(0이면 초록 확정 안 됨)." echo={inp.internalCost}>
+                <Row label={<>내 시간·내부공수 {REQ}</>} why="'이미 있으니 공짜'라는 착각을 막기 위해 반드시 넣습니다." echo={inp.internalCost}>
                   <Num value={wonToMan(inp.internalCost)} onChange={(x) => setMoney("internalCost", x)} suffix="만원" min="0" />
+                  <div className="tiny" style={{ color: "var(--amber)", marginTop: 4 }}>0이면 초록 확정 안 됨</div>
                 </Row>
+              </div>
+              <div className="gap-wrap" style={{ marginTop: 14 }}>
+                <button className="btn btn-primary" onClick={() => { save(); document.querySelector(".verdict")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>저장하고 판정 보기</button>
               </div>
             </div>
           )}
@@ -256,7 +271,7 @@ export default function MoneyTest() {
         <div className="section">
           <div className="step-label">P&L · 이 건이 얼마 남기나</div>
           <div className="panel panel-pad">
-            <Row label="수주 예상액(매출)" echo={inp.revenue}>
+            <Row label={<>수주 예상액(매출) {REQ}</>} echo={inp.revenue}>
               <Num value={wonToMan(inp.revenue)} onChange={(x) => setMoney("revenue", x)} suffix="만원" min="0" />
               <Confidence k="revenue" inp={inp} setMeasured={setMeasured} />
             </Row>
@@ -264,26 +279,27 @@ export default function MoneyTest() {
               <div className="field" style={{ paddingBottom: 72 }}>
                 <label>투입 공수 — 역할·등급별 단가 × 인원 × 개월</label>
                 <div className="hint">SW 노임단가처럼 등급별 월단가로 원가를 잡습니다. 월단가 기본값은 예시 — 실제 연도 노임단가로 수정하세요.</div>
-                <div className="table-wrap" style={{ marginTop: 8 }}>
+                <div style={{ marginTop: 6 }}>{EG}</div>
+                <div className="table-wrap si-roles" style={{ marginTop: 8 }}>
                   <table className="grid" style={{ minWidth: 560 }}>
                     <thead><tr><th>역할</th><th>등급</th><th className="num">인원</th><th className="num">개월</th><th className="num">월단가(만)</th><th className="num">소계</th><th>구분</th><th></th></tr></thead>
                     <tbody>
                       {(inp.roles || []).map((rl, i) => (
                         <tr key={rl.id}>
-                          <td>
+                          <td data-label="역할">
                             <select className="select" style={{ minWidth: 104, height: 34 }} value={SI_ROLE_PRESETS.includes(rl.role) ? rl.role : "기타"} onChange={(e) => updateRole(i, { role: e.target.value === "기타" ? "" : e.target.value })}>
                               {SI_ROLE_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
                               <option value="기타">기타(직접입력)</option>
                             </select>
                             {!SI_ROLE_PRESETS.includes(rl.role) && <input className="input" style={{ marginTop: 4, height: 30, minWidth: 104 }} value={rl.role} placeholder="역할명 입력" onChange={(e) => updateRole(i, { role: e.target.value })} />}
                           </td>
-                          <td><select className="select" style={{ height: 34, width: 76 }} value={rl.grade} onChange={(e) => updateRole(i, { grade: e.target.value, monthlyRate: gradeRate(e.target.value) })}>{SI_GRADES.map((g) => <option key={g.id} value={g.id}>{g.id}</option>)}</select></td>
-                          <td className="num"><input className="input" type="number" min="0" style={{ width: 56, height: 34, textAlign: "right" }} value={rl.count} onChange={(e) => updateRole(i, { count: Number(e.target.value) || 0 })} /></td>
-                          <td className="num"><input className="input" type="number" min="0" style={{ width: 60, height: 34, textAlign: "right" }} value={rl.months} onChange={(e) => updateRole(i, { months: Number(e.target.value) || 0 })} /></td>
-                          <td className="num"><input className="input" type="number" min="0" style={{ width: 74, height: 34, textAlign: "right" }} value={Math.round(wonToMan(rl.monthlyRate))} onChange={(e) => updateRole(i, { monthlyRate: manToWon(Number(e.target.value) || 0) })} /></td>
-                          <td className="num mono">{won(roleCost(rl))}</td>
-                          <td><button type="button" className="btn btn-sm" onClick={() => updateRole(i, { internal: !rl.internal })}>{rl.internal ? "내부" : "외주"}</button></td>
-                          <td><button type="button" className="x" onClick={() => removeRole(i)} aria-label="삭제">×</button></td>
+                          <td data-label="등급"><select className="select" style={{ height: 34, width: 76 }} value={rl.grade} onChange={(e) => { const g = e.target.value; const patch = { grade: g }; if (rl.monthlyRate === gradeRate(rl.grade)) patch.monthlyRate = gradeRate(g); updateRole(i, patch); }}>{SI_GRADES.map((g) => <option key={g.id} value={g.id}>{g.id}</option>)}</select></td>
+                          <td className="num" data-label="인원"><input className="input" type="number" min="0" inputMode="numeric" style={{ width: 56, height: 34, textAlign: "right" }} value={rl.count} onChange={(e) => updateRole(i, { count: Number(e.target.value) || 0 })} /></td>
+                          <td className="num" data-label="개월"><input className="input" type="number" min="0" inputMode="numeric" style={{ width: 60, height: 34, textAlign: "right" }} value={rl.months} onChange={(e) => updateRole(i, { months: Number(e.target.value) || 0 })} /></td>
+                          <td className="num" data-label="월단가(만)"><input className="input" type="number" min="0" inputMode="numeric" style={{ width: 74, height: 34, textAlign: "right" }} value={Math.round(wonToMan(rl.monthlyRate))} onChange={(e) => updateRole(i, { monthlyRate: manToWon(Number(e.target.value) || 0) })} /></td>
+                          <td className="num mono" data-label="소계">{won(roleCost(rl))}</td>
+                          <td data-label="구분"><button type="button" className="btn btn-sm" onClick={() => updateRole(i, { internal: !rl.internal })}>{rl.internal ? "내부" : "외주"}</button></td>
+                          <td data-label=""><button type="button" className="x" onClick={() => removeRole(i)} aria-label="삭제">×</button></td>
                         </tr>
                       ))}
                     </tbody>
@@ -296,16 +312,16 @@ export default function MoneyTest() {
               </div>
             ) : (
               <div className="row2">
-                <Row label="외주비" echo={inp.outsourcing}><Num value={wonToMan(inp.outsourcing)} onChange={(x) => setMoney("outsourcing", x)} suffix="만원" min="0" /><Confidence k="outsourcing" inp={inp} setMeasured={setMeasured} /></Row>
-                <Row label="내부공수(내 시간)" why="여기도 필수 — 내 시간은 공짜가 아닙니다." echo={inp.internalCost}><Num value={wonToMan(inp.internalCost)} onChange={(x) => setMoney("internalCost", x)} suffix="만원" min="0" /><Confidence k="internalCost" inp={inp} setMeasured={setMeasured} /></Row>
+                <Row label={<>외주비 {OPT}</>} echo={inp.outsourcing}><Num value={wonToMan(inp.outsourcing)} onChange={(x) => setMoney("outsourcing", x)} suffix="만원" min="0" /><Confidence k="outsourcing" inp={inp} setMeasured={setMeasured} /></Row>
+                <Row label={<>내부공수(내 시간) {REQ}</>} why="여기도 필수 — 내 시간은 공짜가 아닙니다." echo={inp.internalCost}><Num value={wonToMan(inp.internalCost)} onChange={(x) => setMoney("internalCost", x)} suffix="만원" min="0" /><div className="tiny" style={{ color: "var(--amber)", marginTop: 4 }}>0이면 초록 확정 안 됨</div><Confidence k="internalCost" inp={inp} setMeasured={setMeasured} /></Row>
               </div>
             )}
             <div className="row2">
-              <Row label="인프라·라이선스" echo={inp.infraLicense}><Num value={wonToMan(inp.infraLicense)} onChange={(x) => setMoney("infraLicense", x)} suffix="만원" min="0" /></Row>
-              <Row label="리스크 충당" hint="추가비용 가능성 대비" echo={inp.riskReserve}><Num value={wonToMan(inp.riskReserve)} onChange={(x) => setMoney("riskReserve", x)} suffix="만원" min="0" /></Row>
+              <Row label={<>인프라·라이선스 {OPT}</>} echo={inp.infraLicense}><Num value={wonToMan(inp.infraLicense)} onChange={(x) => setMoney("infraLicense", x)} suffix="만원" min="0" /></Row>
+              <Row label={<>리스크 충당 {OPT}</>} hint="추가비용 가능성 대비" echo={inp.riskReserve}><Num value={wonToMan(inp.riskReserve)} onChange={(x) => setMoney("riskReserve", x)} suffix="만원" min="0" /></Row>
             </div>
-            <Row label="성공확률" hint="가중 기대이익 계산용">
-              <Num value={Math.round((inp.prob || 0) * 100)} onChange={(x) => setRate("prob", x)} suffix="%" min="0" />
+            <Row label={<>성공확률 {OPT}</>} hint="가중 기대이익 계산용">
+              <Num value={Math.round((inp.prob || 0) * 100)} onChange={(x) => setRate("prob", x)} suffix="%" min="0" inputMode="numeric" />
             </Row>
           </div>
         </div>
@@ -318,6 +334,12 @@ export default function MoneyTest() {
         </label>
       </div>
 
+      {justSaved && (
+        <div className="notice info section between" style={{ borderColor: "color-mix(in srgb, var(--accent) 45%, var(--line))", alignItems: "center" }}>
+          <span>저장했습니다. 이제 <b>할까/말까</b>를 남기고 나중에 실제와 대조하려면 —</span>
+          <button className="btn btn-primary" onClick={toDecision} style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{linkedDecId ? "연결된 판단 열기 →" : "판단으로 만들기 →"}</button>
+        </div>
+      )}
       {/* ===== 결과 카드 ===== */}
       <div className="section">
         <div className="section-title">판정</div>

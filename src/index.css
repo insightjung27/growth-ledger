@@ -319,3 +319,22 @@ table.grid td { max-width: 260px; overflow: hidden; text-overflow: ellipsis; whi
   .x { width: 40px; height: 40px; }
   .iconbtn { min-height: 38px; }
 }
+/* SI 역할표: 좁은 화면에선 역할당 세로 카드로 리플로우(데스크톱은 표 유지) */
+@media (max-width: 639px) {
+  .si-roles { overflow-x: visible; border: none; background: none; }
+  .si-roles table.grid { min-width: 0; width: 100%; display: block; }
+  .si-roles table.grid thead { display: none; }
+  .si-roles table.grid tbody { display: block; }
+  .si-roles table.grid tbody tr { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: end; padding: 12px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+  .si-roles table.grid tbody tr:hover { background: var(--paper); cursor: default; }
+  .si-roles table.grid td { display: flex; flex-direction: column; gap: 4px; padding: 0; border: none; max-width: none; overflow: visible; white-space: normal; text-align: left; }
+  .si-roles table.grid td::before { content: attr(data-label); font-size: 11px; font-weight: 700; color: var(--muted); }
+  .si-roles table.grid td[data-label=""]::before { content: none; }
+  .si-roles table.grid td .input, .si-roles table.grid td .select { width: 100% !important; min-width: 0 !important; text-align: left !important; }
+  .si-roles td:nth-child(1) { flex: 2 1 58%; }   /* 역할 */
+  .si-roles td:nth-child(2) { flex: 1 1 32%; }   /* 등급 */
+  .si-roles td:nth-child(3), .si-roles td:nth-child(4), .si-roles td:nth-child(5) { flex: 1 1 27%; }  /* 인원·개월·월단가 한 줄 */
+  .si-roles td:nth-child(6) { flex: 1 1 45%; justify-content: flex-end; }  /* 소계 */
+  .si-roles td:nth-child(7) { flex: 0 0 auto; }  /* 구분 */
+  .si-roles td:nth-child(8) { flex: 0 0 auto; margin-left: auto; }  /* 삭제 */
+}
