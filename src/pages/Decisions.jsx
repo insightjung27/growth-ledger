@@ -110,7 +110,7 @@ export default function Decisions() {
   }, [decisions, today, fType, fStatus]);
 
   function create() {
-    if (!draft.title.trim() || softBlocked) return;
+    if (!draft.title.trim()) return;
     const id = addDecision({ title: draft.title.trim(), type: draft.type });
     setAdding(false);
     setDraft({ title: "", type: "strategy" });
@@ -124,7 +124,7 @@ export default function Decisions() {
           <h1>판단 원장</h1>
           <p className="sub">비즈니스 판단 1건 = 1레코드. 기준을 먼저 정하고 → 결정하고 → 예측을 동결하고 → 기한에 대조합니다. 대조가 판단력의 증거입니다.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setAdding(true)} disabled={softBlocked} title={softBlocked ? "먼저 밀린 대조를 끝내세요" : ""}>+ 신규 판단</button>
+        <button className="btn btn-primary" onClick={() => setAdding(true)}>+ 신규 판단</button>
       </div>
 
       <div className="stat-row section">
@@ -136,7 +136,7 @@ export default function Decisions() {
       {softBlocked ? (
         <div className="section">
           <div className="notice warn">
-            <b>미대조 판단이 {overdue.length}건입니다.</b> 대조 루프가 닫히지 않으면 판단력 주장은 무너집니다. 새 판단 생성을 잠급니다 — 먼저 아래 <b>대조 기한 도래</b>의 판단을 대조하세요.
+            <b>미대조 판단이 {overdue.length}건입니다.</b> 대조 루프가 닫히지 않으면 판단력 주장은 무너집니다. 먼저 밀린 대조 {overdue.length}건을 권합니다 — 아래 <b>대조 기한 도래</b>의 판단부터 대조하세요.
           </div>
         </div>
       ) : null}

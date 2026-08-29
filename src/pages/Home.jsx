@@ -238,7 +238,7 @@ export default function Home() {
 
       {hardOverdue && (
         <div className="notice warn section">
-          <b>미대조 판단 {overdueCount}건</b> — 대조 기한이 지난 판단이 {OVERDUE_LIMIT}건을 넘었습니다. 대조 루프가 닫히지 않으면 판단력 주장이 무너집니다. 신규 판단은 <b>판단 원장</b>에서 소프트블록되니, 먼저 예측 vs 실제를 대조하세요.
+          <b>미대조 판단 {overdueCount}건</b> — 대조 기한이 지난 판단이 {OVERDUE_LIMIT}건을 넘었습니다. 대조 루프가 닫히지 않으면 판단력 주장이 무너집니다. 신규 판단보다 먼저 밀린 대조부터 권합니다 — <b>판단 원장</b>에서 예측 vs 실제를 대조하세요.
           <div style={{ marginTop: 8 }}><button className="btn btn-sm btn-primary" onClick={() => nav("/decisions")}>판단 원장 열기</button></div>
         </div>
       )}

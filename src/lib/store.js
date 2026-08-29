@@ -81,7 +81,7 @@ function sanitize(obj) {
     premortem: { failureModes: [], killCriteria: "", ...(x && x.premortem) },
     decision: { chosenOptionId: null, rationale: "", ...(x && x.decision) },
     prediction: { expected: "", target: "", confidence: 60, ...(x && x.prediction) },
-    review: { actualValue: "", hit: "", lesson: "", ...(x && x.review) },
+    review: { actualValue: "", hit: "", lesson: "", witness: "", evidenceRef: "", ...(x && x.review) },
   }));
   s.deals = s.deals.map((x) => ({
     ...x,
@@ -153,7 +153,7 @@ const _dec = coll("decisions", () => ({
   deadline: "", status: "draft", framesUsed: [], premortem: { failureModes: [], killCriteria: "" },
   decision: { chosenOptionId: null, rationale: "" }, decidedAt: null,
   prediction: { expected: "", target: "", confidence: 60 }, predictionLockedAt: null,
-  reviewDate: "", review: { actualValue: "", hit: "", lesson: "" }, reviewedAt: null,
+  reviewDate: "", review: { actualValue: "", hit: "", lesson: "", witness: "", evidenceRef: "" }, reviewedAt: null,
   nextActions: [], moneyTestId: null,
 }));
 export const addDecision = _dec.add, updateDecision = _dec.update, getDecision = _dec.get;

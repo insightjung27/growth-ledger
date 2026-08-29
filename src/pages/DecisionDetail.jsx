@@ -528,6 +528,15 @@ export default function DecisionDetail() {
                   <label>복기 / 배운 것</label>
                   <textarea className="textarea" value={dec.review.lesson} placeholder="다음 판단에서 무엇을 다르게 할까 — 신뢰도는 적절했나" onChange={(e) => setReview({ lesson: e.target.value })} />
                 </div>
+                <div className="notice info" style={{ marginBottom: 10 }}>외부 근거를 남기면 자기채점을 넘어 판단력의 실제 증거가 됩니다(선택).</div>
+                <div className="field">
+                  <label>외부 상대 (이 결과를 아는 사람 — 이름/역할, 선택)</label>
+                  <input className="input" value={dec.review.witness || ""} placeholder="예: 김OO 재무팀장 / 발주처 담당자" onChange={(e) => setReview({ witness: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>근거 (한 줄·링크·날짜, 선택)</label>
+                  <input className="input" value={dec.review.evidenceRef || ""} placeholder="예: 2026-08 정산서 https://... / 회의록 8/20" onChange={(e) => setReview({ evidenceRef: e.target.value })} />
+                </div>
                 <button className="btn btn-primary btn-block" onClick={completeReview} disabled={!(dec.review.actualValue || "").trim() || !dec.review.hit}>대조 완료</button>
               </>
             )}
