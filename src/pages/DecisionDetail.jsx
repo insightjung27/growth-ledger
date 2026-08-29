@@ -4,6 +4,7 @@ import { useStore, updateDecision, removeDecision, DECISION_TYPES, uid, addMoney
 import { defaultInputs } from "../lib/money.js";
 import { isoDate } from "../lib/format.js";
 import { DECISION_FRAMES } from "../lib/guidance.js";
+import AutoSaved from "../components/AutoSaved.jsx";
 
 const typeLabel = (t) => DECISION_TYPES.find((x) => x.id === t)?.label || t;
 
@@ -32,10 +33,15 @@ function Stepper({ status }) {
           <span key={key} className="gap-wrap" style={{ gap: 6 }}>
             <span
               className="badge"
+              role="button"
+              tabIndex={0}
+              title={`${label} 단계로 이동`}
+              onClick={() => document.getElementById("sec-" + key)?.scrollIntoView({ behavior: "smooth", block: "start" })}
               style={{
                 background: active ? "var(--accent-weak)" : done ? "var(--green-bg)" : "var(--paper-3)",
                 color: active ? "var(--accent)" : done ? "var(--green)" : "var(--muted)",
                 fontWeight: active ? 800 : 700,
+                cursor: "pointer",
               }}
             >
               {done ? "✓ " : `${i + 1}. `}{label}
@@ -104,6 +110,7 @@ export default function DecisionDetail() {
   function rmCriterion(cid) { if (criteriaLocked) return; set({ criteria: dec.criteria.filter((c) => c.id !== cid) }); }
   function lockCriteria() {
     if (!(dec.criteria || []).length) return;
+    if (!confirm("기준을 동결하면 이후 수정할 수 없습니다. 계속할까요?")) return;
     const patch = { criteriaLockedAt: new Date().toISOString() };
     if (dec.status === "draft") patch.status = "verifying";
     set(patch);
@@ -145,6 +152,7 @@ export default function DecisionDetail() {
   // ── 결정 / 예측 동결
   function confirmDecision() {
     if (!canDecide) return;
+    if (!confirm("예측을 동결하면 이후 수정할 수 없습니다. 확정할까요?")) return;
     const now = new Date().toISOString();
     const patch = { decidedAt: now, predictionLockedAt: now, status: "decided" };
     if (!dec.reviewDate) {
@@ -178,7 +186,7 @@ export default function DecisionDetail() {
     <div>
       <div className="page-head between">
         <div>
-          <div className="tiny muted"><Link to="/decisions">판단 원장</Link> / 상세</div>
+          <div className="tiny muted" style={{ display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}><span><Link to="/decisions">판단 원장</Link> / 상세</span><AutoSaved at={dec.updatedAt} /></div>
           <h1>{dec.title || "(제목 없음)"}</h1>
           <Stepper status={dec.status} />
         </div>
@@ -186,7 +194,7 @@ export default function DecisionDetail() {
       </div>
 
       {/* ===== (1) 작성 ===== */}
-      <div className="section">
+      <div className="section" id="sec-draft">
         <div className="section-title">1. 작성 — 무엇을 판단하나</div>
         <div className="panel panel-pad">
           <div className="field">
@@ -290,7 +298,7 @@ export default function DecisionDetail() {
       </div>
 
       {/* ===== (2) 검증 ===== */}
-      <div className="section">
+      <div className="section" id="sec-verifying">
         <div className="section-title">2. 검증 — 어떤 프레임으로 볼까</div>
         <div className="panel panel-pad">
           <div className="notice info" style={{ marginBottom: 12 }}>이 유형에 <b>추천하는 프레임</b>입니다. 적용한 프레임을 눌러 표시하세요. (기대값·기회비용 전용 에디터는 v3 — 지금은 메모로)</div>
@@ -358,7 +366,7 @@ export default function DecisionDetail() {
       </div>
 
       {/* ===== (3) 결정 ===== */}
-      <div className="section">
+      <div className="section" id="sec-decided">
         <div className="section-title">3. 결정 — 선택과 근거, 예측 동결</div>
         <div className="panel panel-pad">
           {!criteriaLocked ? (
@@ -408,7 +416,10 @@ export default function DecisionDetail() {
               ) : null}
 
               {!decided ? (
-                <button className="btn btn-primary btn-block" onClick={confirmDecision} disabled={!canDecide}>결정 확정 · 예측 동결</button>
+                <div className="between" style={{ gap: 10 }}>
+                  <button className="btn btn-primary btn-block" onClick={confirmDecision} disabled={!canDecide}>결정 확정 · 예측 동결</button>
+                  <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>동결 후 수정 불가</span>
+                </div>
               ) : (
                 <div className="notice ok">
                   결정 확정됨 · {new Date(dec.decidedAt).toLocaleString("ko-KR")}<br />
@@ -422,7 +433,7 @@ export default function DecisionDetail() {
 
       {/* ===== (4) 실행 ===== */}
       {decided ? (
-        <div className="section">
+        <div className="section" id="sec-executing">
           <div className="section-title">4. 실행 — 다음 행동 연결</div>
           <div className="panel panel-pad">
             <div className="notice info" style={{ marginBottom: 12 }}>판단은 <b>실행으로 연결</b>돼야 완결됩니다. 딜·위임과제로 넘기면 트레이스가 남습니다(끊겨도 판단 자체는 완결).</div>
@@ -490,7 +501,7 @@ export default function DecisionDetail() {
 
       {/* ===== (5) 대조 ===== */}
       {dec.status === "executing" || dec.status === "reviewed" ? (
-        <div className="section">
+        <div className="section" id="sec-reviewed">
           <div className="section-title">5. 대조 — 예측 vs 실제</div>
           <div className="panel panel-pad">
             <div className="kv-grid" style={{ marginBottom: 14, borderRadius: 10, overflow: "hidden" }}>
@@ -543,6 +554,10 @@ export default function DecisionDetail() {
           </div>
         </div>
       ) : null}
+
+      <div className="section" style={{ marginTop: 8 }}>
+        <Link className="btn btn-sm" to="/decisions">← 판단 원장으로</Link>
+      </div>
     </div>
   );
 }

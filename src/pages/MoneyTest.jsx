@@ -1,9 +1,10 @@
 import { useMemo, useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { compute, defaultInputs, typeOf, PROJECT_TYPES, verdictText, needsWatermark, SI_GRADES, SI_ROLE_PRESETS, gradeRate, makeRole, roleCost } from "../lib/money.js";
-import { addMoneyTest, updateMoneyTest, removeMoneyTest, getMoneyTest, addDecision } from "../lib/store.js";
+import { addMoneyTest, updateMoneyTest, removeMoneyTest, getMoneyTest, addDecision, getDeal, getDecision } from "../lib/store.js";
 import { won, pct, months as fmtMonths, manToWon, wonToMan } from "../lib/format.js";
 import { CashflowChart } from "../components/Charts.jsx";
+import AutoSaved from "../components/AutoSaved.jsx";
 
 const DRAFT_KEY = "growth-ledger:mt-draft";
 
@@ -85,10 +86,13 @@ export default function MoneyTest() {
   const r = useMemo(() => compute(inp), [inp]);
   const v = verdictText(r.verdict);
 
-  // 드래프트 자동저장(신규 미저장분 유실 방지)
+  // 드래프트 자동저장(신규 미저장분 유실 방지) + 저장본은 디바운스 자동저장(무음)
   useEffect(() => {
-    if (!savedId) { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(inp)); } catch (e) {} }
-  }, [inp, savedId]);
+    if (!savedId) { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(inp)); } catch (e) {} return; }
+    if (!dirty) return;
+    const t = setTimeout(() => { updateMoneyTest(savedId, { inputs: inp, name: inp.name, verdict: r.verdict.light, projectType: inp.projectType }); setDirty(false); }, 800);
+    return () => clearTimeout(t);
+  }, [inp, savedId, dirty, r.verdict.light]);
   // 새로고침·닫기 시 미저장 경고
   useEffect(() => {
     function onBU(e) { if (dirty) { e.preventDefault(); e.returnValue = ""; } }
@@ -104,7 +108,7 @@ export default function MoneyTest() {
   const updateRole = (i, patch) => set({ roles: (inp.roles || []).map((x, idx) => (idx === i ? { ...x, ...patch } : x)) });
   const removeRole = (i) => set({ roles: (inp.roles || []).filter((_, idx) => idx !== i) });
 
-  function changeType(pt) { setInp((s) => ({ ...defaultInputs(pt), name: s.name })); setDirty(true); setStep(0); }
+  function changeType(pt) { if (dirty && !confirm('유형을 바꾸면 지금까지 입력이 초기화됩니다. 계속할까요?')) return; setInp((s) => ({ ...defaultInputs(pt), name: s.name })); setDirty(true); setStep(0); }
   function save() {
     if (savedId) updateMoneyTest(savedId, { inputs: inp, name: inp.name, verdict: r.verdict.light, projectType: inp.projectType });
     else { const nid = addMoneyTest({ inputs: inp, name: inp.name, verdict: r.verdict.light, projectType: inp.projectType }); setSavedId(nid); try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
@@ -137,6 +141,13 @@ export default function MoneyTest() {
         <h1>사업성 머니테스트</h1>
         <p className="sub">쉬운 질문 몇 개로 "이거 돈 될까"를 신호등으로 판정합니다. 모르는 값은 '추정'으로 두고, 결과는 정직하게 노랑에서 멈춥니다.</p>
       </div>
+      {existing && (existing.dealId || existing.decisionId) && (
+        <div className="section" style={{ marginTop: -6 }}>
+          {existing.dealId && <Link to={"/deals/" + existing.dealId} className="tiny">← {getDeal(existing.dealId)?.name || "딜"}(으)로</Link>}
+          {existing.decisionId && <Link to={"/decisions/" + existing.decisionId} className="tiny" style={{ marginLeft: existing.dealId ? 12 : 0 }}>← {getDecision(existing.decisionId)?.title || "판단"}(으)로</Link>}
+        </div>
+      )}
+      {savedId && <div className="section" style={{ marginTop: -6 }}><AutoSaved at={getMoneyTest(savedId)?.updatedAt} /></div>}
       <div className="notice info section">
         머니테스트는 <b>'이거 돈 되나'</b>만 계산하는 도구입니다. <b>'할까/말까'</b>를 결정으로 남기고 나중에 <b>실제와 대조</b>하려면 아래 <b>판단으로 만들기</b>를 누르세요. (판단 = 결정·근거·예측을 남기고 맞았는지 대조하는 원장 / 머니테스트 = 그 원장의 '돈 검증' 도구)
       </div>
@@ -158,7 +169,7 @@ export default function MoneyTest() {
       {mode === "save" ? (
         <div className="section">
           <div className="steps">
-            {SAVE_STEPS.map((_, i) => (<div key={i} className={"st" + (i <= step ? " on" : "")} />))}
+            {SAVE_STEPS.map((label, i) => (<button key={i} type="button" className={"st" + (i <= step ? " on" : "")} style={{ border: "none", padding: 0, cursor: "pointer" }} aria-label={`STEP ${i + 1} ${label}`} onClick={() => setStep(i)} />))}
           </div>
           <div className="step-label">STEP {step + 1} / 3 · {SAVE_STEPS[step]}</div>
 
@@ -250,7 +261,7 @@ export default function MoneyTest() {
               <Confidence k="revenue" inp={inp} setMeasured={setMeasured} />
             </Row>
             {inp.projectType === "si" ? (
-              <div className="field">
+              <div className="field" style={{ paddingBottom: 72 }}>
                 <label>투입 공수 — 역할·등급별 단가 × 인원 × 개월</label>
                 <div className="hint">SW 노임단가처럼 등급별 월단가로 원가를 잡습니다. 월단가 기본값은 예시 — 실제 연도 노임단가로 수정하세요.</div>
                 <div className="table-wrap" style={{ marginTop: 8 }}>
@@ -259,7 +270,13 @@ export default function MoneyTest() {
                     <tbody>
                       {(inp.roles || []).map((rl, i) => (
                         <tr key={rl.id}>
-                          <td><input className="input" list="si-roles" style={{ minWidth: 84, height: 34 }} value={rl.role} onChange={(e) => updateRole(i, { role: e.target.value })} /></td>
+                          <td>
+                            <select className="select" style={{ minWidth: 104, height: 34 }} value={SI_ROLE_PRESETS.includes(rl.role) ? rl.role : "기타"} onChange={(e) => updateRole(i, { role: e.target.value === "기타" ? "" : e.target.value })}>
+                              {SI_ROLE_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
+                              <option value="기타">기타(직접입력)</option>
+                            </select>
+                            {!SI_ROLE_PRESETS.includes(rl.role) && <input className="input" style={{ marginTop: 4, height: 30, minWidth: 104 }} value={rl.role} placeholder="역할명 입력" onChange={(e) => updateRole(i, { role: e.target.value })} />}
+                          </td>
                           <td><select className="select" style={{ height: 34, width: 76 }} value={rl.grade} onChange={(e) => updateRole(i, { grade: e.target.value, monthlyRate: gradeRate(e.target.value) })}>{SI_GRADES.map((g) => <option key={g.id} value={g.id}>{g.id}</option>)}</select></td>
                           <td className="num"><input className="input" type="number" min="0" style={{ width: 56, height: 34, textAlign: "right" }} value={rl.count} onChange={(e) => updateRole(i, { count: Number(e.target.value) || 0 })} /></td>
                           <td className="num"><input className="input" type="number" min="0" style={{ width: 60, height: 34, textAlign: "right" }} value={rl.months} onChange={(e) => updateRole(i, { months: Number(e.target.value) || 0 })} /></td>
@@ -272,7 +289,6 @@ export default function MoneyTest() {
                     </tbody>
                   </table>
                 </div>
-                <datalist id="si-roles">{SI_ROLE_PRESETS.map((p) => <option key={p} value={p} />)}</datalist>
                 <div className="between" style={{ marginTop: 10 }}>
                   <button type="button" className="btn btn-sm" onClick={addRole}>+ 역할 추가</button>
                   <span className="small">총 공수 원가 <b>{won(r.laborCost)}</b> <span className="tiny muted">(외주 {won(r.outsourcing)} · 내부 {won(r.internalCost)})</span></span>

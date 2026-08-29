@@ -4,10 +4,13 @@ import {
 } from "../lib/store.js";
 import { SIX_ELEMENTS, REVIEW_CHECKPOINTS } from "../lib/guidance.js";
 import { isoDate, relDate } from "../lib/format.js";
+import AutoSaved from "../components/AutoSaved.jsx";
 
 const STATUS_OPTS = [
   ["assigned", "할당"], ["in_progress", "진행중"], ["review", "리뷰 지점"], ["done", "완결"], ["blocked", "막힘"],
 ];
+// 상태 세그먼트: '완결'은 제외한다. 완결 전환은 하단 '완결 처리'(met/autonomy 입력) 단일 경로로만.
+const SEG_STATUS_OPTS = STATUS_OPTS.filter(([v]) => v !== "done");
 const VERDICT_OPTS = [
   ["", "미점검"], ["on_track", "정상"], ["adjust", "수정"], ["rework", "재작업"], ["blocked", "막힘"],
 ];
@@ -93,6 +96,7 @@ export default function HandoffDetail() {
             {kind === "ax" && <span className="chip">AX 보조지표</span>}
             {northStar ? <span className="badge green">북극성 계상 대상</span> : <span className="badge gray">북극성 미계상</span>}
             {overdue && <span className="badge red">마감 지남</span>}
+            <AutoSaved at={h.updatedAt} />
           </div>
         </div>
         <button className="btn btn-danger" onClick={() => { if (confirm("이 위임과제를 삭제할까요?")) { removeHandoff(h.id); nav("/handoffs"); } }}>삭제</button>
@@ -173,10 +177,11 @@ export default function HandoffDetail() {
           <div className="field">
             <label>상태</label>
             <div className="seg">
-              {STATUS_OPTS.map(([v, label]) => (
-                <button key={v} className={h.status === v ? "on" : ""} onClick={() => set({ status: v, ...(v === "done" ? { completedAt: h.completedAt || new Date().toISOString() } : {}) })}>{label}</button>
+              {SEG_STATUS_OPTS.map(([v, label]) => (
+                <button key={v} className={h.status === v ? "on" : ""} onClick={() => set({ status: v })}>{label}</button>
               ))}
             </div>
+            <div className="hint">완결은 하단 '완결 처리'(결과·자율도 입력)에서만 확정됩니다.</div>
           </div>
           {h.status === "blocked" && (
             <div className="field">
@@ -249,11 +254,15 @@ export default function HandoffDetail() {
           </div>
           <div className="row2">
             <div className="field">
-              <label>재작업 여부</label>
+              <label>재작업 여부 (수동 확정)</label>
               <label className="gap-wrap" style={{ cursor: "pointer", fontSize: 13.5, fontWeight: 600 }}>
                 <input type="checkbox" checked={!!result.rework} onChange={(e) => setResult({ rework: e.target.checked })} />
-                되돌려 다시 시킨 적 있음 (누적 점검 {reworkCount}회)
+                되돌려 다시 시킨 적 있음
               </label>
+              <div className="gap-wrap" style={{ marginTop: 6 }}>
+                <span className="chip" title="20/50/80 체크포인트에서 '재작업' 판정된 횟수 — 자동 집계(읽기전용)">체크포인트 재작업 {reworkCount}회</span>
+                <span className="tiny muted">자동 집계 · 읽기전용</span>
+              </div>
             </div>
             <div className="field">
               <label>실현 가치 (선택)</label>

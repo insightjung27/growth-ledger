@@ -181,6 +181,35 @@ export default function Team() {
         </>
       )}
 
+      {/* 회사목표 관리 */}
+      <div className="section">
+        <div className="between" style={{ marginBottom: 10 }}>
+          <div className="section-title" style={{ marginBottom: 0 }}>회사목표 (분기목표 연결용)</div>
+          <button className="btn btn-sm" onClick={() => setCgModal({ mode: "add", goal: null })}>+ 회사목표</button>
+        </div>
+        <div className="notice info" style={{ marginBottom: 12 }}>
+          팀 분기목표는 회사목표에서 내려와야 정렬됩니다. 여기서 회사목표를 등록하고, 각 분기목표에 연결하세요.
+        </div>
+        <div className="panel panel-pad">
+          {companyGoals.length === 0 ? (
+            <div className="muted small">아직 등록된 회사목표가 없습니다. 상위 방향을 한 줄로 적어두면 팀 목표와의 정렬을 확인할 수 있습니다.</div>
+          ) : (
+            <div className="stack">
+              {companyGoals.map((c) => (
+                <div key={c.id} className="li">
+                  <div className="li-main">
+                    <div className="li-title">{c.title || "(제목 없음)"} {c.quarter ? <span className="muted small" style={{ fontWeight: 500 }}>· {c.quarter}</span> : null}</div>
+                    {c.description ? <div className="li-sub">{c.description}</div> : null}
+                  </div>
+                  <button className="btn btn-sm btn-ghost" onClick={() => setCgModal({ mode: "edit", goal: c })}>편집</button>
+                  <button className="x" aria-label="삭제" onClick={() => { if (confirm("이 회사목표를 삭제할까요? 연결된 분기목표의 연결이 해제됩니다.")) removeCompanyGoal(c.id); }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* 팀 분기목표 3개 섹션 */}
       <div className="section">
         <div className="between" style={{ marginBottom: 10 }}>
@@ -222,6 +251,7 @@ export default function Team() {
                       <div className="gap-wrap">
                         <span className={"badge " + statusClass(g.status)}>{g.status}</span>
                         <button className="btn btn-sm btn-ghost" onClick={() => setGoalModal({ mode: "edit", goal: g })}>편집</button>
+                        <button className="x" aria-label="삭제" onClick={() => { if (confirm("이 분기목표를 삭제할까요?")) removeGoal(g.id); }}>×</button>
                       </div>
                     </div>
 
@@ -257,41 +287,9 @@ export default function Team() {
                       </details>
                     )}
 
-                    <div style={{ marginTop: 6 }}>
-                      <button className="btn btn-sm btn-danger" onClick={() => { if (confirm("이 분기목표를 삭제할까요?")) removeGoal(g.id); }}>삭제</button>
-                    </div>
                   </div>
                 );
               })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 회사목표 관리 */}
-      <div className="section">
-        <div className="between" style={{ marginBottom: 10 }}>
-          <div className="section-title" style={{ marginBottom: 0 }}>회사목표 (분기목표 연결용)</div>
-          <button className="btn btn-sm" onClick={() => setCgModal({ mode: "add", goal: null })}>+ 회사목표</button>
-        </div>
-        <div className="notice info" style={{ marginBottom: 12 }}>
-          팀 분기목표는 회사목표에서 내려와야 정렬됩니다. 여기서 회사목표를 등록하고, 각 분기목표에 연결하세요.
-        </div>
-        <div className="panel panel-pad">
-          {companyGoals.length === 0 ? (
-            <div className="muted small">아직 등록된 회사목표가 없습니다. 상위 방향을 한 줄로 적어두면 팀 목표와의 정렬을 확인할 수 있습니다.</div>
-          ) : (
-            <div className="stack">
-              {companyGoals.map((c) => (
-                <div key={c.id} className="li">
-                  <div className="li-main">
-                    <div className="li-title">{c.title || "(제목 없음)"} {c.quarter ? <span className="muted small" style={{ fontWeight: 500 }}>· {c.quarter}</span> : null}</div>
-                    {c.description ? <div className="li-sub">{c.description}</div> : null}
-                  </div>
-                  <button className="btn btn-sm btn-ghost" onClick={() => setCgModal({ mode: "edit", goal: c })}>편집</button>
-                  <button className="x" aria-label="삭제" onClick={() => { if (confirm("이 회사목표를 삭제할까요? 연결된 분기목표의 연결이 해제됩니다.")) removeCompanyGoal(c.id); }}>×</button>
-                </div>
-              ))}
             </div>
           )}
         </div>

@@ -5,6 +5,7 @@ import {
 } from "../lib/store.js";
 import { weekLabel, isoDate, relDate } from "../lib/format.js";
 import { TrendChart } from "../components/Charts.jsx";
+import AutoSaved from "../components/AutoSaved.jsx";
 
 // 북극성 = 사람·조직 위임의 '완결' 건수(재작업 없이 상대가 끝까지 소유). AI·자동화는 별도 지표.
 export function statsOf(w) {
@@ -27,6 +28,12 @@ function inWeek(iso, range) {
   if (!iso) return false;
   const key = String(iso).slice(0, 10);
   return key >= range.startKey && key < range.endKey;
+}
+// 월요일 키를 달력 기준 ±deltaDays 이동(기록 유무와 무관).
+function shiftWeek(weekOf, deltaDays) {
+  const d = new Date(weekOf + "T00:00:00");
+  d.setDate(d.getDate() + deltaDays);
+  return isoDate(d);
 }
 
 // 두 기둥 이번주 활동 자동요약(회계 마감 원리). 저장 시 이 값을 동결한다.
@@ -81,13 +88,13 @@ export default function Weekly() {
     upsertWeekly(weekKey, { solvedSelf: [...(cur.solvedSelf || []), solved.trim()] });
     setSolved("");
   }
-  function rmSolved(i) { upsertWeekly(weekKey, { solvedSelf: (cur.solvedSelf || []).filter((_, x) => x !== i) }); }
+  function rmSolved(i) { if (!confirm("이 항목을 삭제할까요? 되돌릴 수 없습니다.")) return; upsertWeekly(weekKey, { solvedSelf: (cur.solvedSelf || []).filter((_, x) => x !== i) }); }
   function addDelegated() {
     if (!delText.trim()) return;
     upsertWeekly(weekKey, { delegated: [...(cur.delegated || []), { id: uid(), text: delText.trim(), delegateType: delType, done: false, handoffId: null }] });
     setDelText("");
   }
-  function rmDelegated(i) { upsertWeekly(weekKey, { delegated: (cur.delegated || []).filter((_, x) => x !== i) }); }
+  function rmDelegated(i) { if (!confirm("이 위임 항목을 삭제할까요? 되돌릴 수 없습니다.")) return; upsertWeekly(weekKey, { delegated: (cur.delegated || []).filter((_, x) => x !== i) }); }
   function toggleDone(i) { upsertWeekly(weekKey, { delegated: (cur.delegated || []).map((d, x) => (x === i ? { ...d, done: !d.done } : d)) }); }
 
   function freezeSnapshot() {
@@ -103,11 +110,14 @@ export default function Weekly() {
     .map((w) => ({ label: weekLabel(w.weekOf), value: statsOf(w).peopleDone }));
   const typeLabel = (t) => DELEGATE_TYPES.find((x) => x.id === t)?.label || t;
 
-  // 과거주 이동
-  const weekKeys = [...new Set(reviews.map((w) => w.weekOf))].sort((a, b) => (a < b ? 1 : -1));
-  const idx = weekKeys.indexOf(weekKey);
-  const olderExists = weekKeys.some((k) => k < weekKey);
-  const newerExists = !isThisWeek;
+  // 주 이동 — 달력 기준 ±7일(월요일). 기록 유무와 무관, 빈 주면 그 주를 새로 연다.
+  const prevWeek = shiftWeek(weekKey, -7);
+  const nextWeek = shiftWeek(weekKey, 7);
+
+  // 위임 목록: 미완결 위 · 완결 아래(원래 순서 유지, 원본 인덱스 보존)
+  const delegatedSorted = (cur.delegated || [])
+    .map((it, i) => ({ it, i }))
+    .sort((a, b) => (a.it.done === b.it.done ? 0 : a.it.done ? 1 : -1));
 
   return (
     <div>
@@ -120,15 +130,18 @@ export default function Weekly() {
         </div>
       </div>
 
-      {/* 주 이동 */}
+      {/* 주 이동 — 달력 ±7일 기준 */}
       <div className="section">
         <div className="between panel panel-pad" style={{ padding: "12px 16px" }}>
-          <button className="btn btn-sm btn-ghost" disabled={!olderExists} onClick={() => { const older = weekKeys.filter((k) => k < weekKey).sort((a, b) => (a < b ? 1 : -1))[0]; if (older) setViewWeek(older); }}>← 지난 기록</button>
+          <button className="btn btn-sm btn-ghost" onClick={() => setViewWeek(prevWeek)}>← 지난 주</button>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontWeight: 700 }}>{weekLabel(weekKey)}</div>
             <div className="tiny muted">{isThisWeek ? "이번 주" : "과거 주 조회 · 수정 가능"}{frozen ? " · 요약 동결됨" : ""}</div>
+            {isThisWeek ? null : (
+              <button onClick={() => setViewWeek(currentWeekKey())} className="tiny" style={{ marginTop: 4, background: "none", border: "none", color: "var(--accent)", cursor: "pointer", textDecoration: "underline", padding: 0 }}>이번 주로</button>
+            )}
           </div>
-          <button className="btn btn-sm btn-ghost" disabled={!newerExists} onClick={() => setViewWeek(currentWeekKey())}>이번 주 →</button>
+          <button className="btn btn-sm btn-ghost" disabled={isThisWeek} onClick={() => setViewWeek(nextWeek)}>다음 주 →</button>
         </div>
       </div>
 
@@ -163,7 +176,7 @@ export default function Weekly() {
             {frozen ? (
               <button className="btn btn-sm btn-ghost" onClick={unfreeze}>동결 해제</button>
             ) : (
-              <button className="btn btn-sm btn-primary" onClick={freezeSnapshot}>이번 주 마감 · 요약 동결</button>
+              <button className="btn btn-sm btn-primary" onClick={freezeSnapshot}>요약 숫자 동결</button>
             )}
           </div>
         </div>
@@ -207,11 +220,11 @@ export default function Weekly() {
           </div>
           {(cur.delegated || []).length === 0 ? <div className="muted small">아직 없습니다. 사람·조직 위임(사람·외주)은 '완결'까지 체크해야 북극성에 잡힙니다. AI·자동화는 AX 레버리지로 따로 집계됩니다.</div> : (
             <div className="stack">
-              {cur.delegated.map((it, i) => (
+              {delegatedSorted.map(({ it, i }) => (
                 <div key={it.id || i} className="li">
                   {delegateKind(it.delegateType) === "people" ? (
                     <button className={"chip"} style={{ cursor: "pointer", background: it.done ? "var(--green-bg)" : "var(--paper-3)", color: it.done ? "var(--green)" : "var(--muted)" }} onClick={() => toggleDone(i)} aria-pressed={it.done}>
-                      {it.done ? "완결 ✓" : "완결 체크"}
+                      {it.done ? "완결 ✓" : "완결로 표시"}
                     </button>
                   ) : (<span className="chip">AX</span>)}
                   <div className="li-main"><div className="li-title">{it.text}</div>{it.handoffId ? <div className="li-sub">위임과제 연결됨</div> : null}</div>
@@ -229,6 +242,7 @@ export default function Weekly() {
         <div className="section-title">다음 주 위임 계획</div>
         <div className="panel panel-pad">
           <textarea className="textarea" value={cur.nextDelegation || ""} placeholder="다음 주에 내가 직접 하지 않고 넘길 일 하나" onChange={(e) => upsertWeekly(weekKey, { nextDelegation: e.target.value })} />
+          <div style={{ marginTop: 6 }}><AutoSaved at={cur.updatedAt} /></div>
           <div className="tiny muted" style={{ marginTop: 8 }}>에이스는 붙잡지 말고 더 큰 문제로: 업무 → 프로젝트 → 영역 → 결정권 → 사람.</div>
         </div>
       </div>

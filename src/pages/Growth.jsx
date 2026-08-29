@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useStore, setCapability, CAPABILITIES, delegateKind } from "../lib/store.js";
 import { pct } from "../lib/format.js";
 import { compute } from "../lib/money.js";
@@ -178,14 +179,6 @@ export default function Growth() {
               reason={`대조 완료 ${reviewed.length}건 / 최소 ${SAMPLE_MIN}건 필요`}
               good={hitGood}
             />
-            <Metric
-              label="머니테스트 payback 정확도 · 기둥①"
-              ready={paybackReady}
-              value={paybackReady ? pct(paybackHits / measuredMt.length) : ""}
-              sub={paybackReady ? `실측 ${measuredMt.length}건 중 예측 ±25% 이내 ${paybackHits}건` : ""}
-              reason={measuredMt.length === 0 ? "계측 불가(준비중) — 실측 payback 입력 경로 미구현" : `실측 완료 ${measuredMt.length}건 / 최소 ${SAMPLE_MIN}건 필요`}
-              good={paybackReady && paybackHits / measuredMt.length >= 0.6}
-            />
           </div>
 
           {/* 사람 리더십 축(기둥②) — 1인 단계면 접힘·정직 표기 */}
@@ -303,13 +296,20 @@ export default function Growth() {
         <div className="section-title">역량은 결과로 증명된다</div>
         <div className="panel panel-pad">
           <div className="stack" style={{ gap: 10 }}>
-            <div className="between" style={{ gap: 12 }}>
+            <div className="between" style={{ gap: 12, flexWrap: "wrap" }}>
               <div><b>Business·Sales</b> <span className="muted small">사업·영업</span></div>
-              <div className="small muted" style={{ textAlign: "right" }}>→ 딜 수주 · 판단 적중률 · 머니테스트 정확도</div>
+              <div className="gap-wrap" style={{ justifyContent: "flex-end" }}>
+                <Link to="/deals" className="chip" style={{ textDecoration: "none" }}>딜 수주 →</Link>
+                <Link to="/decisions" className="chip" style={{ textDecoration: "none" }}>판단 적중률 →</Link>
+                <Link to="/money-test" className="chip" style={{ textDecoration: "none" }}>머니테스트 정확도 →</Link>
+              </div>
             </div>
-            <div className="between" style={{ gap: 12 }}>
+            <div className="between" style={{ gap: 12, flexWrap: "wrap" }}>
               <div><b>People</b> <span className="muted small">위임·조직</span></div>
-              <div className="small muted" style={{ textAlign: "right" }}>→ 사람 위임 완결 · 위임수준 평균 · 1:1 이행</div>
+              <div className="gap-wrap" style={{ justifyContent: "flex-end" }}>
+                <Link to="/handoffs" className="chip" style={{ textDecoration: "none" }}>사람 위임 완결 →</Link>
+                <Link to="/one-on-ones" className="chip" style={{ textDecoration: "none" }}>1:1 이행 →</Link>
+              </div>
             </div>
           </div>
           <div className="tiny muted" style={{ marginTop: 12 }}>자가진단 점수를 올리고 싶다면 위 결과지표를 움직이세요. 점수만 올리는 것은 허영입니다.</div>
@@ -317,7 +317,7 @@ export default function Growth() {
       </div>
 
       <div className="notice warn section">
-        분기 재진단: 이번 분기 목표(위 슬라이더) 대비 결과지표가 얼마나 움직였는지로 재평가하세요. 스냅샷 적재·분기 추이 차트·12주 프로그램 히트맵은 다음 버전(v3)에서 — 지금은 빈 히트맵으로 죄책감을 만들지 않습니다.
+        분기 재진단: 이번 분기 목표(위 슬라이더) 대비 결과지표가 얼마나 움직였는지로 재평가하세요. 스냅샷 적재·분기 추이 차트·12주 프로그램 히트맵, 그리고 <b>머니테스트 payback 정확도</b>(실측 대비 예측 ±25% — 실측 입력 경로 필요)는 다음 버전(v3)에서 — 지금은 빈 히트맵·미완성 지표로 죄책감을 만들지 않습니다.
       </div>
     </div>
   );

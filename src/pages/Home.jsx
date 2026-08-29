@@ -265,11 +265,11 @@ export default function Home() {
       {!isEmpty && (
         <div className="stat-row section">
           <div className="stat"><div className="k">가중 파이프라인</div><div className="v">{won(weighted)}</div><div className="d">열린 딜 {(deals || []).filter((d) => d.stageId !== "lost" && d.stageId !== "won").length}건</div></div>
-          <div className="stat"><div className="k">열린 판단</div><div className="v">{openDecisions}<small>건</small></div><div className="d">대조 적중률 {hitRateText}</div></div>
+          <div className="stat"><div className="k">대조 적중률</div><div className="v">{hitRateText}</div><div className="d">{hitRateSub}</div></div>
           {hasTeam ? (
             <div className="stat"><div className="k">사람 위임 완결</div><div className="v" style={{ color: "var(--green)" }}>{peopleDone}<small>건</small></div><div className="d">실권이양(L3+/권한 명시)만 · 북극성</div></div>
           ) : (
-            <div className="stat"><div className="k">대조 적중률</div><div className="v">{hitRateText}</div><div className="d">{hitRateSub}</div></div>
+            <div className="stat"><div className="k">사람 위임 완결</div><div className="v" style={{ color: "var(--muted-2)" }}>—</div><div className="d">팀원 추가하면 열림</div></div>
           )}
         </div>
       )}
@@ -329,17 +329,20 @@ export default function Home() {
         </div>
       )}
 
-      {/* ===== R4 코칭 지침 인라인 ===== */}
+      {/* ===== R4 코칭 지침 — 기본 닫힘 ===== */}
       <div className="section">
-        <div className="notice info">
-          <b>리더 운영 리듬</b> — {LEADER_RHYTHM.join(" · ")}. 홈은 <b>일</b> 단위 급한 일을 뽑고, <b>주(금요 자기리뷰)</b>가 정본 리듬입니다. 대조 기한 도래는 판단 원장 전체의 가치를 여는 최우선 신호라 스누즈되지 않습니다.
-        </div>
-      </div>
-      <div className="section">
-        <div className="notice info">
-          <b>북극성 — {CAREER_NORTHSTAR.title}</b><br />
-          {CAREER_NORTHSTAR.line}. 홈 상단 결과신호는 "기록 몇 건"이 아니라 <b>대조 적중</b>·<b>사람 위임 완결</b>입니다 — 내가 없어도 팀이 결과를 만드는지를 봅니다. 표본이 부족하면 숫자 대신 "계측 불가"로 정직하게 멈춥니다.
-        </div>
+        <details className="panel">
+          <summary style={{ cursor: "pointer", padding: "14px 16px", fontWeight: 700 }}>운영 원칙 보기</summary>
+          <div style={{ padding: "0 16px 16px" }}>
+            <div className="notice info">
+              <b>리더 운영 리듬</b> — {LEADER_RHYTHM.join(" · ")}. 홈은 <b>일</b> 단위 급한 일을 뽑고, <b>주(금요 자기리뷰)</b>가 정본 리듬입니다. 대조 기한 도래는 판단 원장 전체의 가치를 여는 최우선 신호라 스누즈되지 않습니다.
+            </div>
+            <div className="notice info" style={{ marginTop: 12 }}>
+              <b>북극성 — {CAREER_NORTHSTAR.title}</b><br />
+              {CAREER_NORTHSTAR.line}. 홈 상단 결과신호는 "기록 몇 건"이 아니라 <b>대조 적중</b>·<b>사람 위임 완결</b>입니다 — 내가 없어도 팀이 결과를 만드는지를 봅니다. 표본이 부족하면 숫자 대신 "계측 불가"로 정직하게 멈춥니다.
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   );

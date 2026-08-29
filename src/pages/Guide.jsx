@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   CAREER_NORTHSTAR,
@@ -18,21 +19,21 @@ import { DELEGATION_LEVELS } from "../lib/store.js";
 // 각 원칙 섹션이 앱 어느 기능과 연결되는지
 const LINKS = {
   career: [
-    { to: "/growth", label: "성장 대시보드" },
-    { to: "/weekly", label: "주간 자기리뷰" },
+    { to: "/growth", label: "성장" },
+    { to: "/weekly", label: "주간리뷰" },
   ],
   money: [{ to: "/money-test", label: "머니테스트" }],
-  customer: [{ to: "/deals", label: "딜 파이프라인" }],
+  customer: [{ to: "/deals", label: "딜" }],
   delegate: [
     { to: "/team", label: "팀" },
-    { to: "/handoffs", label: "업무 넘기기" },
+    { to: "/handoffs", label: "위임과제" },
   ],
   oneonone: [{ to: "/one-on-ones", label: "1:1" }],
   goals: [
-    { to: "/growth", label: "팀 목표·성과" },
+    { to: "/growth", label: "성장" },
     { to: "/team", label: "팀" },
   ],
-  weekly: [{ to: "/weekly", label: "주간 자기리뷰" }],
+  weekly: [{ to: "/weekly", label: "주간리뷰" }],
 };
 
 // 섹션별로 아래에 붙여 보여줄 구조화 참고블록
@@ -155,11 +156,23 @@ function ExtraGrid({ title, children }) {
 }
 
 export default function Guide() {
+  // details 열림 상태 추적 — 첫 섹션만 기본 열림
+  const [openMap, setOpenMap] = useState(() => (GUIDE_SECTIONS[0] ? { [GUIDE_SECTIONS[0].id]: true } : {}));
   return (
     <div>
       <div className="page-head">
         <h1>코칭 가이드</h1>
         <p className="sub">사업을 이해하는 Product/Business Leader로 가는 원칙 모음. 읽고, 각 원칙을 이 앱의 기능으로 실천합니다.</p>
+      </div>
+
+      {/* 섹션 앵커 목차 */}
+      <div className="section">
+        <div className="gap-wrap">
+          <span className="tiny muted" style={{ fontWeight: 700, alignSelf: "center" }}>목차 →</span>
+          {GUIDE_SECTIONS.map((sec) => (
+            <a key={sec.id} href={"#guide-" + sec.id} className="chip" style={{ textDecoration: "none" }}>{sec.title}</a>
+          ))}
+        </div>
       </div>
 
       {/* 커리어 북극성 */}
@@ -198,7 +211,7 @@ export default function Guide() {
       </div>
 
       <div className="notice info section">
-        두 기둥으로 실천합니다. <b>① 판단</b> — 사업 판단을 기록하고 맞는 도구로 검증(<Link to="/decisions" style={{ color: "var(--accent)", fontWeight: 700 }}>판단</Link>·<Link to="/money-test" style={{ color: "var(--accent)", fontWeight: 700 }}>머니테스트</Link>·<Link to="/deals" style={{ color: "var(--accent)", fontWeight: 700 }}>딜</Link>). <b>② 사람</b> — 팀을 키우고 일을 굴린다(<Link to="/team" style={{ color: "var(--accent)", fontWeight: 700 }}>팀</Link>·<Link to="/one-on-ones" style={{ color: "var(--accent)", fontWeight: 700 }}>1:1</Link>·<Link to="/handoffs" style={{ color: "var(--accent)", fontWeight: 700 }}>업무 넘기기</Link>·<Link to="/growth" style={{ color: "var(--accent)", fontWeight: 700 }}>목표</Link>). 아래 원칙을 펼쳐 읽으세요.
+        두 기둥으로 실천합니다. <b>① 판단</b> — 사업 판단을 기록하고 맞는 도구로 검증(<Link to="/decisions" style={{ color: "var(--accent)", fontWeight: 700 }}>판단</Link>·<Link to="/money-test" style={{ color: "var(--accent)", fontWeight: 700 }}>머니테스트</Link>·<Link to="/deals" style={{ color: "var(--accent)", fontWeight: 700 }}>딜</Link>). <b>② 사람</b> — 팀을 키우고 일을 굴린다(<Link to="/team" style={{ color: "var(--accent)", fontWeight: 700 }}>팀</Link>·<Link to="/one-on-ones" style={{ color: "var(--accent)", fontWeight: 700 }}>1:1</Link>·<Link to="/handoffs" style={{ color: "var(--accent)", fontWeight: 700 }}>위임과제</Link>·<Link to="/growth" style={{ color: "var(--accent)", fontWeight: 700 }}>성장</Link>). 아래 원칙을 펼쳐 읽으세요.
       </div>
 
       {/* 원칙 섹션 — 접기/펼치기 */}
@@ -208,10 +221,10 @@ export default function Guide() {
           {GUIDE_SECTIONS.map((sec, idx) => {
             const links = LINKS[sec.id] || [];
             return (
-              <details key={sec.id} className="panel" open={idx === 0} style={{ overflow: "hidden" }}>
+              <details key={sec.id} id={"guide-" + sec.id} className="panel" open={idx === 0} onToggle={(e) => setOpenMap((m) => ({ ...m, [sec.id]: e.target.open }))} style={{ overflow: "hidden" }}>
                 <summary style={{ listStyle: "none", cursor: "pointer", padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, fontWeight: 700 }}>
                   <span style={{ fontSize: 15 }}>{sec.title}</span>
-                  <span className="tiny muted" aria-hidden="true">펼치기 ▾</span>
+                  <span className="tiny muted" aria-hidden="true">{openMap[sec.id] ? "접기 ▴" : "펼치기 ▾"}</span>
                 </summary>
                 <div style={{ padding: "0 18px 18px", borderTop: "1px solid var(--line)" }}>
                   <div className="stack" style={{ gap: 10, marginTop: 14 }}>

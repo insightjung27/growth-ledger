@@ -20,7 +20,7 @@ export const SI_GRADES = [
   { id: "고급", rate: 8000000 },
   { id: "특급", rate: 9700000 },
 ];
-export const SI_ROLE_PRESETS = ["기획자", "개발자", "디자이너", "PM", "QA", "퍼블리셔"];
+export const SI_ROLE_PRESETS = ["PM", "기획자", "개발자", "프론트개발", "백엔드개발", "디자이너", "퍼블리셔", "QA", "아키텍트", "DBA", "데이터엔지니어"];
 export function gradeRate(id) { return SI_GRADES.find((g) => g.id === id)?.rate || 6400000; }
 export function makeRole(role = "개발자", grade = "중급") {
   return { id: "role-" + Math.random().toString(36).slice(2, 8), role, grade, count: 1, months: 6, monthlyRate: gradeRate(grade), internal: false };

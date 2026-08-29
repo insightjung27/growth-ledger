@@ -7,6 +7,7 @@ import { defaultInputs } from "../lib/money.js";
 import { manToWon, wonToMan } from "../lib/format.js";
 import { rottingOf } from "../lib/deal.js";
 import { CUSTOMER_QUESTIONS, KEY_QUESTIONS, DEAL_JOURNEY, GIVE_AND_GET, NEXT_STEP_TIP } from "../lib/guidance.js";
+import AutoSaved from "../components/AutoSaved.jsx";
 
 // 단계(stageId) → 딜 여정(journey key) 매핑: 현재 단계에 해당하는 여정 칸을 강조
 const STAGE_TO_JOURNEY = { lead: "requirements", meeting: "requirements", proposal: "proposal", quote: "quote", nego: "nego", won: "contract", lost: null };
@@ -48,6 +49,7 @@ export default function DealDetail() {
   const needsPnl = stageIdx >= proposalIdx && deal.stageId !== "lost" && !deal.moneyTestId;
   const currentJourneyKey = STAGE_TO_JOURNEY[deal.stageId] || null;
   const answered = CUSTOMER_QUESTIONS.filter((q) => String(cq[q.key] || "").trim()).length;
+  const journeyDone = DEAL_JOURNEY.filter((s) => String(jn[s.key] || "").trim()).length;
 
   function createMoneyTest() {
     const base = defaultInputs("si");
@@ -73,7 +75,9 @@ export default function DealDetail() {
             {rot ? <span className={"badge " + rot.level}><span className={"dot " + rot.level} />{rot.why}</span> : null}
             {deal.stageId === "won" ? <span className="badge green">수주</span> : null}
             {deal.stageId === "lost" ? <span className="badge red">실패</span> : null}
+            {!isClosed ? <button className="btn btn-sm btn-ghost" onClick={() => set({ lastContact: new Date().toISOString() })}>오늘 접촉함</button> : null}
           </div>
+          <div style={{ marginTop: 8 }}><AutoSaved at={deal.updatedAt} /></div>
         </div>
         <button className="btn btn-danger" onClick={() => { if (confirm("이 딜을 삭제할까요?")) { removeDeal(deal.id); nav("/deals"); } }}>삭제</button>
       </div>
@@ -109,12 +113,12 @@ export default function DealDetail() {
         </div>
       </div>
 
-      {/* 항목2 — 고객 미팅 질문 세트 */}
-      <div className="section">
-        <div className="between" style={{ marginBottom: 10 }}>
-          <div className="section-title" style={{ margin: 0 }}>고객 미팅 질문 세트 (항목2)</div>
-          <span className={"badge " + (answered >= 8 ? "green" : answered >= 4 ? "amber" : "gray")}>{answered}/10 작성</span>
-        </div>
+      {/* 고객 미팅 질문 세트 — 기본 접기 */}
+      <details className="section">
+        <summary style={{ cursor: "pointer", marginBottom: 10 }}>
+          <span className="section-title" style={{ margin: 0, display: "inline" }}>고객 미팅 질문 세트</span>
+          <span className={"badge " + (answered >= 8 ? "green" : answered >= 4 ? "amber" : "gray")} style={{ marginLeft: 8 }}>{answered}/10 작성</span>
+        </summary>
         <div className="panel panel-pad">
           <div className="notice info" style={{ marginBottom: 14 }}>
             <b>설명이 아니라 질문.</b> 이 두 가지를 반드시 확인하세요.
@@ -135,11 +139,15 @@ export default function DealDetail() {
             );
           })}
         </div>
-      </div>
+      </details>
 
-      {/* 항목3 — 딜 여정 산출물 */}
-      <div className="section">
-        <div className="section-title">딜 여정 산출물 (항목3 · 요구→제안→견적→협상→계약)</div>
+      {/* 딜 여정 산출물 — 기본 접기(현재 단계 칸은 펼침 유도) */}
+      <details className="section">
+        <summary style={{ cursor: "pointer", marginBottom: 10 }}>
+          <span className="section-title" style={{ margin: 0, display: "inline" }}>딜 여정 산출물</span>
+          <span className="badge gray" style={{ marginLeft: 8 }}>{journeyDone}/{DEAL_JOURNEY.length} 작성</span>
+          {currentJourneyKey && !String(jn[currentJourneyKey] || "").trim() ? <span className="badge amber" style={{ marginLeft: 6 }}>펼쳐서 현재 단계 입력</span> : null}
+        </summary>
         <div className="panel panel-pad">
           <div className="notice info" style={{ marginBottom: 14 }}>
             단계마다 <b>산출물과 확인 포인트</b>를 남기세요. 지금 단계는 <b>{DEFAULT_STAGES.find((s) => s.id === deal.stageId)?.name || "리드"}</b>입니다.
@@ -163,7 +171,7 @@ export default function DealDetail() {
             );
           })}
         </div>
-      </div>
+      </details>
 
       {/* 다음 단계 */}
       <div className="section">

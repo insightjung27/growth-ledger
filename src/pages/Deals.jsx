@@ -10,14 +10,33 @@ export default function Deals() {
   const nav = useNavigate();
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: "", amountMan: "", stageId: "lead" });
+  const [flt, setFlt] = useState("all");
 
-  const active = deals.filter((d) => d.stageId !== "lost");
+  const active = deals.filter((d) => d.stageId !== "won" && d.stageId !== "lost");
   const weighted = useMemo(
     () => active.reduce((sum, d) => sum + (Number(d.amount) || 0) * stageById(d.stageId).prob, 0),
     [active]
   );
   const openCount = deals.filter((d) => d.stageId !== "won" && d.stageId !== "lost").length;
   const rottingCount = deals.filter((d) => rottingOf(d)?.level === "red").length;
+
+  // 정렬: 방치(red>amber)→진행→수주/실패(하단), 2차 가중금액 내림차순. 필터: 전체/진행만/방치만.
+  const view = useMemo(() => {
+    const rank = (d) => {
+      if (d.stageId === "won" || d.stageId === "lost") return 3;
+      const r = rottingOf(d);
+      if (r?.level === "red") return 0;
+      if (r?.level === "amber") return 1;
+      return 2;
+    };
+    const wa = (d) => (Number(d.amount) || 0) * stageById(d.stageId).prob;
+    const filtered = deals.filter((d) => {
+      if (flt === "open") return d.stageId !== "won" && d.stageId !== "lost";
+      if (flt === "rotting") { const r = rottingOf(d); return r?.level === "red" || r?.level === "amber"; }
+      return true;
+    });
+    return filtered.slice().sort((a, b) => rank(a) - rank(b) || wa(b) - wa(a));
+  }, [deals, flt]);
 
   function submit() {
     if (!draft.name.trim()) return;
@@ -38,10 +57,18 @@ export default function Deals() {
       </div>
 
       <div className="stat-row section">
-        <div className="stat"><div className="k">가중 파이프라인</div><div className="v">{won(weighted)}</div><div className="d">확률 반영 기대 총액</div></div>
+        <div className="stat"><div className="k">가중 파이프라인</div><div className="v">{won(weighted)}</div><div className="d">확률 반영 기대 총액 · 수주확정 제외</div></div>
         <div className="stat"><div className="k">진행 중 딜</div><div className="v">{openCount}<small>건</small></div><div className="d">수주·실패 제외</div></div>
-        <div className="stat"><div className="k">방치 경고</div><div className="v" style={{ color: rottingCount ? "var(--red)" : "inherit" }}>{rottingCount}<small>건</small></div><div className="d">다음행동 없음·장기 미접촉</div></div>
+        <div className="stat" role="button" tabIndex={0} style={{ cursor: "pointer" }} title="방치만 보기" onClick={() => setFlt("rotting")} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setFlt("rotting"))}><div className="k">방치 경고</div><div className="v" style={{ color: rottingCount ? "var(--red)" : "inherit" }}>{rottingCount}<small>건</small></div><div className="d">다음행동 없음·장기 미접촉</div></div>
       </div>
+
+      {deals.length > 0 ? (
+        <div className="section seg" role="tablist" aria-label="딜 필터">
+          <button className={flt === "all" ? "on" : ""} onClick={() => setFlt("all")}>전체</button>
+          <button className={flt === "open" ? "on" : ""} onClick={() => setFlt("open")}>진행만</button>
+          <button className={flt === "rotting" ? "on" : ""} onClick={() => setFlt("rotting")}>방치만</button>
+        </div>
+      ) : null}
 
       {deals.length === 0 ? (
         <div className="panel empty">
@@ -64,12 +91,12 @@ export default function Deals() {
               </tr>
             </thead>
             <tbody>
-              {deals.map((d) => {
+              {view.map((d) => {
                 const st = stageById(d.stageId);
                 const rot = rottingOf(d);
                 return (
                   <tr key={d.id} tabIndex={0} role="button" aria-label={`딜 ${d.name || "무제"} 열기`} onClick={() => nav("/deals/" + d.id)} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), nav("/deals/" + d.id))}>
-                    <td><b>{d.name || "(무제)"}</b>{d.moneyTestId && <span className="badge gray" style={{ marginLeft: 6 }}>머니테스트</span>}</td>
+                    <td>{rot ? <span className={"dot " + rot.level} style={{ marginRight: 6 }} title={rot.why} /> : null}<b>{d.name || "(무제)"}</b>{d.moneyTestId ? <span className="badge gray" style={{ marginLeft: 6 }}>머니테스트</span> : null}</td>
                     <td className="num mono">{won(d.amount)}</td>
                     <td><span className="badge gray">{st.name} {Math.round(st.prob * 100)}%</span></td>
                     <td className="num mono">{won((Number(d.amount) || 0) * st.prob)}</td>

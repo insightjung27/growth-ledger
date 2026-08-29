@@ -36,6 +36,16 @@ function summarize(h) {
   return { reachedPct, needsReview, dLeft, overdue, dueSoon, stale, open, kind, northStar };
 }
 
+// 목록 정렬 긴급도: 마감 지남 > 임박 > 점검 필요 > 막힘 > 진행중 > 완결(하단)
+function urgencyRank({ h, s }) {
+  if (h.status === "done") return 5;
+  if (s.overdue) return 0;
+  if (s.dueSoon) return 1;
+  if (s.needsReview) return 2;
+  if (h.status === "blocked") return 3;
+  return 4;
+}
+
 const EMPTY_FORM = () => ({
   title: "", delegateType: "person", assigneeId: "", delegationLevel: 2,
   outcome: "", metric: "", boundary: "", authority: "", deadline: "",
@@ -58,7 +68,7 @@ export default function Handoffs() {
     if (statusFilter === "blocked" && h.status !== "blocked") return false;
     if (kindFilter !== "all" && s.kind !== kindFilter) return false;
     return true;
-  });
+  }).sort((a, b) => urgencyRank(a) - urgencyRank(b));
 
   // 상단 요약
   const openN = rows.filter((r) => r.s.open).length;
@@ -78,11 +88,21 @@ export default function Handoffs() {
         <button className="btn btn-primary" onClick={() => setWizard(true)}>위임 넘기기</button>
       </div>
 
-      {/* 6요소 지침 — 왜 이걸 하나 */}
-      <div className="notice info section">
-        <b>6요소로 넘겨야 다시 안 봅니다.</b> {SIX_ELEMENTS.map((e) => e.label).join(" · ")} —{" "}
-        {SIX_ELEMENTS.map((e) => `${e.label}(${e.desc})`).join(", ")}. 결과·지표·경계·권한·마감이 빠지면 "다시 설명"이 반복됩니다.
-      </div>
+      {/* 6요소 지침 — 왜 이걸 하나. 과제가 있으면 접어둔다(빈 상태에서만 펼침). */}
+      {handoffs.length === 0 ? (
+        <div className="notice info section">
+          <b>6요소로 넘겨야 다시 안 봅니다.</b> {SIX_ELEMENTS.map((e) => e.label).join(" · ")} —{" "}
+          {SIX_ELEMENTS.map((e) => `${e.label}(${e.desc})`).join(", ")}. 결과·지표·경계·권한·마감이 빠지면 "다시 설명"이 반복됩니다.
+        </div>
+      ) : (
+        <details className="notice info section">
+          <summary style={{ cursor: "pointer", fontWeight: 700 }}>6요소로 넘겨야 다시 안 봅니다 — 펼쳐 보기</summary>
+          <div style={{ marginTop: 8 }}>
+            {SIX_ELEMENTS.map((e) => e.label).join(" · ")} —{" "}
+            {SIX_ELEMENTS.map((e) => `${e.label}(${e.desc})`).join(", ")}. 결과·지표·경계·권한·마감이 빠지면 "다시 설명"이 반복됩니다.
+          </div>
+        </details>
+      )}
 
       {handoffs.length === 0 ? (
         <div className="panel empty">

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useStore, addOneOnOne, updateOneOnOne, removeOneOnOne, uid } from "../lib/store.js";
 import { isoDate, relDate } from "../lib/format.js";
@@ -28,11 +28,21 @@ export default function OneOnOnes() {
   const [params, setParams] = useSearchParams();
   const memberFilter = params.get("memberId");
 
-  const [selId, setSelId] = useState(null);
+  const [selId, setSelId] = useState(() => params.get("sessionId") || null);
   const [showNew, setShowNew] = useState(false);
   const [newMember, setNewMember] = useState(memberFilter || "");
   const [newDate, setNewDate] = useState(isoDate());
   const [focusField, setFocusField] = useState("growthCareer");
+
+  // 진입 시 new=1이면 생성 모달 자동 오픈 + memberId 프리셀렉트(직전 미완 액션은 모달·createSession에서 buildCarry로 프리필)
+  useEffect(() => {
+    if (params.get("new") === "1") {
+      setNewMember(memberFilter || (members[0]?.id || ""));
+      setNewDate(isoDate());
+      setShowNew(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const memberName = (mid) => members.find((m) => m.id === mid)?.name || "(삭제된 팀원)";
 
@@ -151,9 +161,9 @@ export default function OneOnOnes() {
         </div>
       </div>
 
-      <div className="section" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.7fr) minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
+      <div className="section" style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "start" }}>
         {/* 좌: 회차 목록 + 편집 */}
-        <div className="stack" style={{ minWidth: 0 }}>
+        <div className="stack" style={{ minWidth: 0, flex: "1.7 1 420px" }}>
           <div className="panel panel-pad">
             <div className="section-title" style={{ marginTop: 0 }}>회차 목록</div>
             {visible.length === 0 ? (
@@ -272,7 +282,7 @@ export default function OneOnOnes() {
         </div>
 
         {/* 우: 질문 뱅크 사이드패널 */}
-        <div className="panel panel-pad" style={{ position: "sticky", top: 12 }}>
+        <div className="panel panel-pad" style={{ position: "sticky", top: 12, flex: "1 1 300px", minWidth: 0 }}>
           <div className="section-title" style={{ marginTop: 0 }}>질문 뱅크</div>
           <div className="notice info" style={{ marginBottom: 12 }}>답을 바로 고쳐주지 마세요. 생각하게 만드는 질문으로. {sel ? <>클릭하면 <b>‘{AGENDA_FIELDS.find((f) => f.key === focusField)?.label}’</b> 칸에 삽입됩니다.</> : "회차를 선택하면 클릭으로 삽입할 수 있습니다."}</div>
 

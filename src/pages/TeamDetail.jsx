@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
-  useStore, updateTeamMember, removeTeamMember, setMemberLevel, addOneOnOne, DELEGATION_LEVELS,
+  useStore, updateTeamMember, removeTeamMember, setMemberLevel, DELEGATION_LEVELS,
 } from "../lib/store.js";
-import { relDate, isoDate } from "../lib/format.js";
+import { relDate } from "../lib/format.js";
 import { GUIDE_SECTIONS } from "../lib/guidance.js";
+import AutoSaved from "../components/AutoSaved.jsx";
 
 const DELEGATE_GUIDE = GUIDE_SECTIONS.find((s) => s.id === "delegate");
 const HO_STATUS = { assigned: "할당", in_progress: "진행중", review: "리뷰", done: "완결", blocked: "막힘" };
@@ -101,8 +102,7 @@ export default function TeamDetail() {
   }
 
   function startOneOnOne() {
-    const nid = addOneOnOne({ memberId: member.id, date: isoDate() });
-    nav("/one-on-ones");
+    nav("/one-on-ones?memberId=" + member.id + "&new=1");
   }
 
   const evidenceOptions = [
@@ -116,9 +116,23 @@ export default function TeamDetail() {
         <div>
           <div className="tiny muted"><Link to="/team">팀·구성원</Link> / 상세</div>
           <h1>{member.name || "(이름 없음)"}</h1>
+          <div style={{ marginTop: 4 }}><AutoSaved at={member.updatedAt} /></div>
         </div>
-        <button className="btn btn-danger" onClick={() => { if (confirm("이 팀원을 삭제할까요?")) { removeTeamMember(member.id); nav("/team"); } }}>삭제</button>
+        <div className="gap-wrap">
+          {member.active === false ? (
+            <button className="btn btn-sm" onClick={() => set({ active: true })}>로스터 복귀</button>
+          ) : (
+            <button className="btn btn-sm btn-ghost" onClick={() => { if (confirm("이 팀원을 비활성(퇴사·이동) 처리할까요? 로스터에서는 빠지되 기록은 보존됩니다.")) set({ active: false }); }}>비활성(퇴사·이동)</button>
+          )}
+          <button className="btn btn-danger btn-sm" onClick={() => { if (confirm("이 팀원의 기록을 영구 삭제할까요? 되돌릴 수 없습니다. (퇴사·이동만이면 비활성 처리를 쓰세요)")) { removeTeamMember(member.id); nav("/team"); } }}>기록 영구 삭제</button>
+        </div>
       </div>
+
+      {member.active === false && (
+        <div className="notice warn section">
+          비활성(퇴사·이동) 처리된 팀원입니다. 로스터에는 표시되지 않지만 기록은 보존됩니다. '로스터 복귀'로 되돌릴 수 있습니다.
+        </div>
+      )}
 
       {promo && (
         <div className="notice ok section">
@@ -200,7 +214,7 @@ export default function TeamDetail() {
             </div>
           </div>
           <div className="field">
-            <label>근거 메모 <span style={{ color: "var(--red)" }}>*</span></label>
+            <label>근거 메모 <span className="muted small">(근거(참조 또는 메모) 중 하나 필수{evRef ? " · 참조 선택됨" : ""})</span></label>
             <input className="input" value={evNote} placeholder="왜 이 수준으로 조정하나요? (관찰된 사실)" onChange={(e) => setEvNote(e.target.value)} />
             <div className="hint">근거(참조 또는 메모) 없이는 변경할 수 없습니다. 슬라이더로 임의 상향을 막고, 실제 관찰에 근거해 육성 판단을 남기기 위함입니다.</div>
           </div>
@@ -281,7 +295,7 @@ export default function TeamDetail() {
               {oneOnOnes.map((o) => {
                 const open = (o.actionItems || []).filter((a) => !a.done).length;
                 return (
-                  <Link key={o.id} to="/one-on-ones" className="li" style={{ textDecoration: "none" }}>
+                  <Link key={o.id} to={"/one-on-ones?memberId=" + o.memberId + "&sessionId=" + o.id} className="li" style={{ textDecoration: "none" }}>
                     <div className="li-main">
                       <div className="li-title">{o.date || (o.createdAt || "").slice(0, 10)} · {relDate(o.date || o.createdAt)}</div>
                       <div className="li-sub">{o.memberAgenda ? `아젠다: ${o.memberAgenda}` : "아젠다 미기록"}{open ? ` · 미완 액션 ${open}건` : ""}</div>

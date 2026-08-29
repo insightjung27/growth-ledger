@@ -5,7 +5,17 @@ import { isoDate, daysBetween } from "../lib/format.js";
 import { DECISION_FRAMES } from "../lib/guidance.js";
 import Modal from "../components/Modal.jsx";
 
-const OVERDUE_LIMIT = 3; // 미대조 3건 초과면 신규 생성 소프트블록
+const OVERDUE_LIMIT = 3; // 미대조 3건 초과면 신규 생성 전 대조를 권고(차단 아님)
+
+// 상태 우선순위 — 낮을수록 위. 대조도래>실행대기>실행중>작성·검증>완료
+function statusRank(d, today) {
+  if (isOverdue(d, today)) return 0;
+  if (d.status === "decided") return 1;
+  if (d.status === "executing") return 2;
+  if (d.status === "draft" || d.status === "verifying") return 3;
+  if (d.status === "reviewed") return 5;
+  return 4;
+}
 
 const typeLabel = (t) => DECISION_TYPES.find((x) => x.id === t)?.label || t;
 
@@ -87,6 +97,7 @@ export default function Decisions() {
   const [draft, setDraft] = useState({ title: "", type: "strategy" });
   const [fType, setFType] = useState("all");
   const [fStatus, setFStatus] = useState("all");
+  const [hideReviewed, setHideReviewed] = useState(true);
 
   const overdue = useMemo(() => decisions.filter((d) => isOverdue(d, today)), [decisions, today]);
   const verifyingCount = decisions.filter((d) => d.status === "draft" || d.status === "verifying").length;
@@ -101,13 +112,19 @@ export default function Decisions() {
     let list = decisions.filter((d) => !isOverdue(d, today));
     if (fType !== "all") list = list.filter((d) => d.type === fType);
     if (fStatus !== "all") list = list.filter((d) => d.status === fStatus);
-    // 마감 임박 기본 정렬(마감 없는 건 뒤로)
+    if (hideReviewed) list = list.filter((d) => d.status !== "reviewed");
+    // 1차: 상태 우선순위(대조도래>실행대기>실행중>작성·검증>완료), 2차: 마감(없는 건 뒤로)
     return [...list].sort((a, b) => {
+      const ra = statusRank(a, today);
+      const rb = statusRank(b, today);
+      if (ra !== rb) return ra - rb;
       const da = a.deadline || "9999-99-99";
       const db = b.deadline || "9999-99-99";
       return da < db ? -1 : da > db ? 1 : 0;
     });
-  }, [decisions, today, fType, fStatus]);
+  }, [decisions, today, fType, fStatus, hideReviewed]);
+
+  function resetFilters() { setFType("all"); setFStatus("all"); setHideReviewed(false); }
 
   function create() {
     if (!draft.title.trim()) return;
@@ -179,10 +196,14 @@ export default function Decisions() {
                 <option value="executing">실행 중</option>
                 <option value="reviewed">대조 완료</option>
               </select>
+              <button type="button" className={"btn btn-sm" + (hideReviewed ? " on" : "")} onClick={() => setHideReviewed((v) => !v)} title="대조 완료 판단을 목록에서 숨깁니다">{hideReviewed ? "✓ 완료 숨기기" : "완료 숨기기"}</button>
             </div>
           </div>
           {rest.length === 0 ? (
-            <div className="panel panel-pad muted small">조건에 맞는 판단이 없습니다. 필터를 바꿔보세요.</div>
+            <div className="panel panel-pad muted small between" style={{ gap: 10, flexWrap: "wrap" }}>
+              <span>조건에 맞는 판단이 없습니다. 필터를 바꿔보세요.</span>
+              <button className="btn btn-sm" onClick={resetFilters}>필터 초기화</button>
+            </div>
           ) : (
             <div className="panel panel-pad">
               {rest.map((d) => (
