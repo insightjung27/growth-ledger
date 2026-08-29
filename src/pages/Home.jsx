@@ -29,7 +29,7 @@ export default function Home() {
 
   const empty = deals.length === 0 && moneyTests.length === 0 && weeklyReviews.length === 0;
   const daysSinceBackup = meta?.lastBackupAt ? daysBetween(meta.lastBackupAt) : null;
-  const hasData = deals.length || moneyTests.length || weeklyReviews.length;
+  const hasData = deals.length + moneyTests.length + weeklyReviews.length > 0;
   const showBackup = hasData && (daysSinceBackup == null || daysSinceBackup >= 7);
 
   // 오늘 할 일 1개 — 가장 급한 것 하나만
