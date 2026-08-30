@@ -404,7 +404,7 @@ function GoalModal({ data, quarter, members, qGoalCount = 0, onClose }) {
       {needReason && (
         <div className="field">
           <label>변경 사유 <span style={{ color: "var(--red)" }}>*</span> <span className="muted small">({changed.map((f) => f.label).join(", ")} 변경)</span></label>
-          <input className="input" value={reason} placeholder="왜 목표를 바꾸나요? (예: 상위 회사목표 조정)" onChange={(e) => setReason(e.target.value)} />
+          <input className="input" value={reason} placeholder="왜 목표를 바꾸나요? (예: 상위 방향·우선순위 조정)" onChange={(e) => setReason(e.target.value)} />
           <div className="hint">목표 정의를 바꾸면 이유가 이력으로 남습니다. 결과에 맞춰 목표를 사후에 고치는 것을 막기 위함입니다.</div>
         </div>
       )}
