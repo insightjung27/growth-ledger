@@ -389,7 +389,7 @@ export default function MoneyTest() {
         </div>
       </div>
 
-      <div className="gap-wrap" style={{ position: "sticky", bottom: 12, background: "var(--paper-2)", padding: "10px 0", zIndex: 5 }}>
+      <div className="gap-wrap page-actions">
         <button className="btn btn-primary" onClick={save}>{savedId ? "저장" : "머니테스트 저장"}{dirty && !savedId ? "" : ""}</button>
         <button className="btn" onClick={toDecision} style={{ color: "var(--accent)", borderColor: "color-mix(in srgb, var(--accent) 45%, var(--line))", fontWeight: 700 }}>{linkedDecId ? "연결된 판단 열기 →" : "판단으로 만들기 →"}</button>
         <button className="btn" onClick={newTest}>새로 만들기</button>

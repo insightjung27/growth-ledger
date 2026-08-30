@@ -319,6 +319,75 @@ table.grid td { max-width: 260px; overflow: hidden; text-overflow: ellipsis; whi
   .x { width: 40px; height: 40px; }
   .iconbtn { min-height: 38px; }
 }
+/* ===== 모바일 셸 개편(가로폭 최적화·적대검토 2차) ===== */
+:root { --tabbar-h: 58px; }
+
+/* 반응형 표시 헬퍼 */
+.only-mob { display: none; }
+.tabbar, .sheet-overlay { display: none; }
+
+/* 브랜드: 절대 줄바꿈 금지 + 모바일 영문부제 숨김 */
+.brand { white-space: nowrap; }
+.brand-name { white-space: nowrap; }
+
+/* 버튼 라벨 줄바꿈 금지(전역) */
+.btn { white-space: nowrap; }
+
+/* 머니테스트 등 페이지 하단 sticky 액션바(클래스화) */
+.page-actions { position: sticky; bottom: 12px; background: var(--paper-2); padding: 10px 0; z-index: 5; }
+
+/* 하단 탭바(모바일) */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  grid-template-columns: repeat(5, 1fr);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.tabbar-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 7px 2px 6px; min-height: 54px;
+  color: var(--muted); font-weight: 600; font-size: 11px; letter-spacing: -0.01em;
+  border: none; background: transparent; cursor: pointer;
+}
+.tabbar-item.as-btn { font: inherit; }
+.tabbar-item svg { width: 23px; height: 23px; display: block; }
+.tabbar-item span { line-height: 1; white-space: nowrap; }
+.tabbar-item.active { color: var(--accent); }
+
+/* '더보기' 바텀시트 */
+.sheet-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(10, 12, 16, 0.5); align-items: flex-end; justify-content: center; }
+.sheet {
+  width: 100%; background: var(--paper); border: 1px solid var(--line); border-bottom: none;
+  border-radius: 18px 18px 0 0; box-shadow: var(--shadow);
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+.sheet-grip { width: 40px; height: 4px; border-radius: 999px; background: var(--line); margin: 6px auto 12px; }
+.sheet-title { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 12px; }
+.sheet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sheet-link {
+  display: flex; align-items: center; min-height: 48px; padding: 0 14px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--paper);
+  color: var(--ink); font-weight: 650;
+}
+.sheet-link.active { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); }
+.sheet-sep { height: 1px; background: var(--line); margin: 14px 0; }
+.sheet-actions { display: flex; gap: 10px; }
+
+@media (max-width: 640px) {
+  .only-desk { display: none !important; }
+  .only-mob { display: revert; }
+  .brand small { display: none; }
+  .tabbar { display: grid; }
+  .sheet-overlay { display: flex; }
+  /* 하단 탭바만큼 본문·푸터 여백 확보(언더랩 방지) */
+  .main { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 16px); }
+  .footer { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px); }
+  /* 페이지 sticky 액션바는 탭바 위로 */
+  .page-actions { bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 8px); }
+}
+
 /* SI 역할표: 좁은 화면에선 역할당 세로 카드로 리플로우(데스크톱은 표 유지) */
 @media (max-width: 639px) {
   .si-roles { overflow-x: visible; border: none; background: none; }
