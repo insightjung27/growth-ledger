@@ -17,6 +17,7 @@ const MORE = [
   { to: "/handoffs", label: "위임과제" },
   { to: "/one-on-ones", label: "1:1" },
   { to: "/growth", label: "성장" },
+  { to: "/pmo", label: "PMO" },
   { to: "/guide", label: "가이드" },
 ];
 // 데스크톱 상단 탭 = 전체(기존 순서 유지)
@@ -30,6 +31,7 @@ const ALL = [
   { to: "/one-on-ones", label: "1:1" },
   { to: "/weekly", label: "주간리뷰" },
   { to: "/growth", label: "성장" },
+  { to: "/pmo", label: "PMO" },
   { to: "/guide", label: "가이드" },
 ];
 

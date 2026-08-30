@@ -15,6 +15,7 @@ import HandoffDetail from "./pages/HandoffDetail.jsx";
 import OneOnOnes from "./pages/OneOnOnes.jsx";
 import Weekly from "./pages/Weekly.jsx";
 import Growth from "./pages/Growth.jsx";
+import Pmo from "./pages/Pmo.jsx";
 import Guide from "./pages/Guide.jsx";
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
             <Route path="one-on-ones" element={<OneOnOnes />} />
             <Route path="weekly" element={<Weekly />} />
             <Route path="growth" element={<Growth />} />
+            <Route path="pmo" element={<Pmo />} />
             <Route path="guide" element={<Guide />} />
             <Route path="*" element={<Home />} />
           </Route>
