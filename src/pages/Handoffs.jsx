@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
-  useStore, addHandoff, DELEGATE_TYPES, delegateKind, DELEGATION_LEVELS,
+  useStore, addHandoff, DELEGATE_TYPES, delegateKind, DELEGATION_LEVELS, isCompletedHandoff,
 } from "../lib/store.js";
 import { SIX_ELEMENTS, REVIEW_CHECKPOINTS } from "../lib/guidance.js";
 import { isoDate, daysBetween, relDate } from "../lib/format.js";
@@ -80,7 +80,7 @@ export default function Handoffs() {
   const reviewN = rows.filter((r) => r.s.needsReview).length;
   const overdueN = rows.filter((r) => r.s.overdue).length;
   const blockedN = rows.filter((r) => r.h.status === "blocked").length;
-  const peopleDone = rows.filter((r) => r.s.northStar && r.h.status === "done" && !(r.h.result && r.h.result.rework)).length;
+  const peopleDone = rows.filter((r) => isCompletedHandoff(r.h)).length;
   const axN = rows.filter((r) => r.s.kind === "people" ? false : true).length;
 
   return (
@@ -175,7 +175,7 @@ export default function Handoffs() {
                       {s.dueSoon && <span className="badge amber">마감 임박{s.dLeft != null ? ` D-${s.dLeft}` : ""}</span>}
                       {s.stale && <span className="badge gray">방치 14일+</span>}
                       {s.kind === "ax" && <span className="chip">AX 보조</span>}
-                      {s.northStar && h.status === "done" && <span className="badge green">북극성 계상</span>}
+                      {isCompletedHandoff(h) && <span className="badge green">북극성 계상</span>}
                       {h.deadline && !s.overdue && !s.dueSoon && <span className="tiny muted">마감 {h.deadline}</span>}
                       <span className="tiny muted">갱신 {relDate(h.updatedAt)}</span>
                     </div>

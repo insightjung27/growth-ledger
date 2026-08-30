@@ -1,34 +1,13 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   useStore, upsertWeekly, currentWeekKey,
-  DELEGATE_TYPES, delegateKind, uid,
+  DELEGATE_TYPES, handoffRollupOfWeek, isCompletedHandoff, weekRange, inWeek,
 } from "../lib/store.js";
-import { weekLabel, isoDate, relDate } from "../lib/format.js";
+import { weekLabel, isoDate, relDate, weekMonday } from "../lib/format.js";
 import { TrendChart } from "../components/Charts.jsx";
 import AutoSaved from "../components/AutoSaved.jsx";
 
-// 북극성 = 사람·조직 위임의 '완결' 건수(재작업 없이 상대가 끝까지 소유). AI·자동화는 별도 지표.
-export function statsOf(w) {
-  const s = (w.solvedSelf || []).length;
-  const del = w.delegated || [];
-  const people = del.filter((d) => delegateKind(d.delegateType) === "people");
-  const peopleDone = people.filter((d) => d.done).length;
-  const ax = del.filter((d) => delegateKind(d.delegateType) === "ax").length;
-  return { s, peopleTotal: people.length, peopleDone, ax, smoothed: peopleDone / (s + 1) };
-}
-
-// weekOf(월요일 키) 기준 한 주 범위 [start, end). 날짜/타임스탬프 모두 앞 10자리 문자열로 비교.
-function weekRange(weekOf) {
-  const start = new Date(weekOf + "T00:00:00");
-  const end = new Date(start);
-  end.setDate(end.getDate() + 7);
-  return { startKey: weekOf, endKey: isoDate(end) };
-}
-function inWeek(iso, range) {
-  if (!iso) return false;
-  const key = String(iso).slice(0, 10);
-  return key >= range.startKey && key < range.endKey;
-}
 // 월요일 키를 달력 기준 ±deltaDays 이동(기록 유무와 무관).
 function shiftWeek(weekOf, deltaDays) {
   const d = new Date(weekOf + "T00:00:00");
@@ -60,13 +39,16 @@ const SNAP_LABELS = [
   { key: "oneOnOnesHeld", label: "1:1 개최", pillar: "②" },
 ];
 
+const HO_STATUS = { assigned: { label: "진행", cls: "gray" }, blocked: { label: "막힘", cls: "amber" }, done: { label: "완료", cls: "green" } };
+const typeLabel = (t) => DELEGATE_TYPES.find((x) => x.id === t)?.label || t;
+
 export default function Weekly() {
   const reviews = useStore((s) => s.weeklyReviews);
   const decisions = useStore((s) => s.decisions);
   const deals = useStore((s) => s.deals);
   const handoffs = useStore((s) => s.handoffs);
   const oneOnOnes = useStore((s) => s.oneOnOnes);
-  const hasTeam = useStore((s) => s.teamMembers.length > 0);
+  const members = useStore((s) => s.teamMembers);
 
   const [viewWeek, setViewWeek] = useState(currentWeekKey());
   const weekKey = viewWeek;
@@ -74,8 +56,6 @@ export default function Weekly() {
   const cur = reviews.find((w) => w.weekOf === weekKey) || { weekOf: weekKey, solvedSelf: [], delegated: [], nextDelegation: "", pillarSnapshot: null };
 
   const [solved, setSolved] = useState("");
-  const [delText, setDelText] = useState("");
-  const [delType, setDelType] = useState("person");
 
   // 실시간 자동요약(동결 전 미리보기) vs 동결본
   const liveSnap = computePillarSnapshot(weekKey, { decisions, deals, handoffs, oneOnOnes });
@@ -83,41 +63,43 @@ export default function Weekly() {
   const shownSnap = frozen || liveSnap;
   const snapTotal = SNAP_LABELS.reduce((a, x) => a + (shownSnap[x.key] || 0), 0);
 
+  // ★위임 = 수기 입력이 아니라 위임과제(handoffs) 원장에서 자동 롤업(이중입력 제거)
+  const rollup = handoffRollupOfWeek(weekKey, handoffs);
+  const memberName = (id) => (members.find((m) => m.id === id)?.name) || "";
+
   function addSolved() {
     if (!solved.trim()) return;
     upsertWeekly(weekKey, { solvedSelf: [...(cur.solvedSelf || []), solved.trim()] });
     setSolved("");
   }
   function rmSolved(i) { if (!confirm("이 항목을 삭제할까요? 되돌릴 수 없습니다.")) return; upsertWeekly(weekKey, { solvedSelf: (cur.solvedSelf || []).filter((_, x) => x !== i) }); }
-  function addDelegated() {
-    if (!delText.trim()) return;
-    upsertWeekly(weekKey, { delegated: [...(cur.delegated || []), { id: uid(), text: delText.trim(), delegateType: delType, done: false, handoffId: null }] });
-    setDelText("");
-  }
-  function rmDelegated(i) { if (!confirm("이 위임 항목을 삭제할까요? 되돌릴 수 없습니다.")) return; upsertWeekly(weekKey, { delegated: (cur.delegated || []).filter((_, x) => x !== i) }); }
-  function toggleDone(i) { upsertWeekly(weekKey, { delegated: (cur.delegated || []).map((d, x) => (x === i ? { ...d, done: !d.done } : d)) }); }
 
   function freezeSnapshot() {
-    // 이번 주 마감 — 자동요약을 동결(회계 마감). 재마감 허용(값 갱신).
     upsertWeekly(weekKey, { pillarSnapshot: { ...liveSnap, frozenAt: new Date().toISOString() } });
   }
   function unfreeze() { upsertWeekly(weekKey, { pillarSnapshot: null }); }
 
-  const st = statsOf(cur);
-  const trend = [...reviews]
-    .filter((w) => (w.solvedSelf || []).length || (w.delegated || []).length)
-    .sort((a, b) => (a.weekOf < b.weekOf ? -1 : 1))
-    .map((w) => ({ label: weekLabel(w.weekOf), value: statsOf(w).peopleDone }));
-  const typeLabel = (t) => DELEGATE_TYPES.find((x) => x.id === t)?.label || t;
+  // 사람 위임 완결 추세 — 완결된 handoffs를 completedAt의 '완결주'로 그룹핑(weeklyReview 유무와 독립)
+  const byWeek = {};
+  (handoffs || []).filter(isCompletedHandoff).forEach((h) => {
+    if (!h.completedAt) return;
+    const wk = weekMonday(new Date(String(h.completedAt).slice(0, 10) + "T00:00:00"));
+    byWeek[wk] = (byWeek[wk] || 0) + 1;
+  });
+  const trend = Object.keys(byWeek).sort().map((wk) => ({ label: weekLabel(wk), value: byWeek[wk] }));
 
-  // 주 이동 — 달력 기준 ±7일(월요일). 기록 유무와 무관, 빈 주면 그 주를 새로 연다.
   const prevWeek = shiftWeek(weekKey, -7);
   const nextWeek = shiftWeek(weekKey, 7);
 
-  // 위임 목록: 미완결 위 · 완결 아래(원래 순서 유지, 원본 인덱스 보존)
-  const delegatedSorted = (cur.delegated || [])
-    .map((it, i) => ({ it, i }))
-    .sort((a, b) => (a.it.done === b.it.done ? 0 : a.it.done ? 1 : -1));
+  function HandoffRow({ h, badge }) {
+    return (
+      <Link to={"/handoffs/" + h.id} className="li" style={{ textDecoration: "none" }}>
+        {badge}
+        <div className="li-main"><div className="li-title">{h.title || "(무제)"}</div>{memberName(h.assigneeId) ? <div className="li-sub">{memberName(h.assigneeId)}</div> : null}</div>
+        <span className="chip">{typeLabel(h.delegateType)}</span>
+      </Link>
+    );
+  }
 
   return (
     <div>
@@ -182,13 +164,14 @@ export default function Weekly() {
         </div>
       </div>
 
-      {/* 3스탯: 결과신호 전면 */}
+      {/* 3스탯: 결과신호 전면 — 위임완결은 handoffs 자동집계(검증된 북극성) */}
       <div className="stat-row section">
-        <div className="stat"><div className="k">사람 위임 완결 · 회고 표시</div><div className="v" style={{ color: "var(--ink-2)" }}>{st.peopleDone}<small>건</small></div><div className="d">이 주 체크 기준(비검증) · 정식 북극성은 홈에서 실권이양(L3+/권한명시) 게이트로 계산</div></div>
-        <div className="stat"><div className="k">직접 푼 문제</div><div className="v">{st.s}<small>건</small></div><div className="d">내가 처리</div></div>
-        <div className="stat"><div className="k">AX 레버리지</div><div className="v">{st.ax}<small>건</small></div><div className="d">AI·자동화(별도 분모)</div></div>
+        <div className="stat"><div className="k">사람 위임 완결 · 북극성</div><div className="v" style={{ color: rollup.peopleDone > 0 ? "var(--green)" : "var(--ink)" }}>{rollup.peopleDone}<small>건</small></div><div className="d">이번 주 완결 · 실권이양(L3+/권한명시)·무재작업만 · 위임과제 자동집계</div></div>
+        <div className="stat"><div className="k">직접 푼 문제</div><div className="v">{(cur.solvedSelf || []).length}<small>건</small></div><div className="d">내가 처리</div></div>
+        <div className="stat"><div className="k">AX 레버리지</div><div className="v">{rollup.ax}<small>건</small></div><div className="d">AI·자동화(별도 분모)</div></div>
       </div>
 
+      {/* 내가 직접 푼 문제 — 수기(다른 원장 없음) */}
       <div className="section">
         <div className="section-title">내가 직접 푼 문제</div>
         <div className="panel panel-pad">
@@ -206,35 +189,74 @@ export default function Weekly() {
         </div>
       </div>
 
+      {/* 남이 해결하게 만든 일 — 위임과제 자동 집계(이중입력 제거) */}
       <div className="section">
-        <div className="section-title">남이 해결하게 만든 일 — 완결됐는지 체크</div>
+        <div className="between" style={{ marginBottom: 10 }}>
+          <div className="section-title" style={{ marginBottom: 0 }}>남이 해결하게 만든 일 — 위임과제 자동 집계</div>
+          <Link to="/handoffs" className="btn btn-sm">위임과제 열기</Link>
+        </div>
         <div className="panel panel-pad">
-          <div className="field" style={{ marginBottom: 10 }}>
-            <input className="input" value={delText} placeholder="누구/무엇에게 넘겼나" onChange={(e) => setDelText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addDelegated()} />
-          </div>
-          <div className="between" style={{ marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-            <div className="tagset">
-              {DELEGATE_TYPES.map((t) => (<button key={t.id} className={delType === t.id ? "on" : ""} onClick={() => setDelType(t.id)}>{t.label}</button>))}
+          {(handoffs || []).length === 0 ? (
+            <div className="empty" style={{ padding: "24px 12px" }}>
+              <div className="em-ic">🤝</div>
+              <h3>아직 위임과제가 없습니다</h3>
+              <p>넘긴 일은 위임과제 원장에서 6요소·20/50/80으로 관리하세요. 이 주간 회고는 그걸 자동으로 집계만 합니다(이중입력 없음).</p>
+              <Link to="/handoffs" className="btn btn-primary">위임과제로 이동</Link>
             </div>
-            <button className="btn btn-sm btn-primary" onClick={addDelegated}>추가</button>
-          </div>
-          {(cur.delegated || []).length === 0 ? <div className="muted small">아직 없습니다. 사람·조직 위임(사람·외주)은 '완결'까지 체크해야 북극성에 잡힙니다. AI·자동화는 AX 레버리지로 따로 집계됩니다.</div> : (
-            <div className="stack">
-              {delegatedSorted.map(({ it, i }) => (
-                <div key={it.id || i} className="li">
-                  {delegateKind(it.delegateType) === "people" ? (
-                    <button className={"chip"} style={{ cursor: "pointer", background: it.done ? "var(--green-bg)" : "var(--paper-3)", color: it.done ? "var(--green)" : "var(--muted)" }} onClick={() => toggleDone(i)} aria-pressed={it.done}>
-                      {it.done ? "완결 ✓" : "완결로 표시"}
-                    </button>
-                  ) : (<span className="chip">AX</span>)}
-                  <div className="li-main"><div className="li-title">{it.text}</div>{it.handoffId ? <div className="li-sub">위임과제 연결됨</div> : null}</div>
-                  <span className="chip">{typeLabel(it.delegateType)}</span>
-                  <button className="x" onClick={() => rmDelegated(i)} aria-label="삭제">×</button>
+          ) : (
+            <>
+              <div className="section-title" style={{ marginTop: 0 }}>이번 주 완결 · 북극성</div>
+              {rollup.peopleCompleted.length === 0 ? (
+                <div className="muted small">이번 주 완결된 사람 위임이 없습니다.</div>
+              ) : (
+                <div className="stack">
+                  {rollup.peopleCompleted.map((h) => (
+                    <HandoffRow key={h.id} h={h} badge={<span className="chip" style={{ background: "var(--green-bg)", color: "var(--green)", flex: "0 0 auto" }}>완결 ✓</span>} />
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+
+              <div className="section-title" style={{ marginTop: 16 }}>이번 주 넘긴 일</div>
+              {rollup.peopleHandedOffList.length === 0 ? (
+                <div className="muted small">이번 주 새로 넘긴 일이 없습니다.</div>
+              ) : (
+                <div className="stack">
+                  {rollup.peopleHandedOffList.map((h) => {
+                    const st = HO_STATUS[h.status] || HO_STATUS.assigned;
+                    return <HandoffRow key={h.id} h={h} badge={<span className={"badge " + st.cls} style={{ flex: "0 0 auto" }}>{st.label}</span>} />;
+                  })}
+                </div>
+              )}
+
+              {rollup.axList.length > 0 && (
+                <details style={{ marginTop: 16 }}>
+                  <summary className="tiny muted" style={{ cursor: "pointer", fontWeight: 700 }}>AX 레버리지 {rollup.ax}건 (AI·자동화 · 별도 분모)</summary>
+                  <div className="stack" style={{ marginTop: 8 }}>
+                    {rollup.axList.map((h) => (
+                      <HandoffRow key={h.id} h={h} badge={<span className="chip" style={{ flex: "0 0 auto" }}>AX</span>} />
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {rollup.undatedDone > 0 && (
+                <div className="notice warn" style={{ marginTop: 12 }}>완결일 미기록 {rollup.undatedDone}건은 주간 집계에서 제외됩니다. 위임과제에서 완결 처리하면 반영됩니다.</div>
+              )}
+
+              <div className="tiny muted" style={{ marginTop: 12 }}>여기서는 입력하지 않습니다 — 넘길 일은 <Link to="/handoffs" style={{ color: "var(--accent)", fontWeight: 700 }}>위임과제</Link>에서 추가·관리하고, 주간 회고는 자동 집계만 합니다(이중입력 제거).</div>
+            </>
           )}
-          {hasTeam ? <div className="tiny muted" style={{ marginTop: 10 }}>정식 위임과제로 관리 중이라면 위임과제 화면에서 6요소·20/50/80 점검으로 다루세요. 여기 회고는 이중입력을 피해 요약만.</div> : null}
+
+          {(cur.delegated || []).length > 0 && (
+            <details style={{ marginTop: 14 }}>
+              <summary className="tiny muted" style={{ cursor: "pointer" }}>이전 수기 기록 {cur.delegated.length}건 (더 이상 집계에 반영되지 않음)</summary>
+              <div className="stack" style={{ marginTop: 8 }}>
+                {cur.delegated.map((it, i) => (
+                  <div key={it.id || i} className="li"><div className="li-main"><div className="li-title">{it.text}</div><div className="li-sub">{typeLabel(it.delegateType)}{it.done ? " · 완결(수기)" : ""}</div></div></div>
+                ))}
+              </div>
+            </details>
+          )}
         </div>
       </div>
 
@@ -251,7 +273,7 @@ export default function Weekly() {
         <div className="section-title">사람 위임 완결 추세</div>
         <div className="panel panel-pad">
           <TrendChart series={trend} />
-          <div className="tiny muted" style={{ marginTop: 8 }}>"내가 없어도 굴러가는" 리더로의 전환 측정점입니다. AI·자동화 사용(AX)은 별도로 봅니다.</div>
+          <div className="tiny muted" style={{ marginTop: 8 }}>완결된 위임과제를 완결 주 기준으로 집계합니다. "내가 없어도 굴러가는" 리더로의 전환 측정점 — AI·자동화(AX)는 별도로 봅니다.</div>
         </div>
       </div>
     </div>

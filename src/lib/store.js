@@ -1,7 +1,7 @@
 // 클라이언트 전용 상태 저장소(localStorage). v2 — 두 기둥 데이터모델.
 // v1 자산(deals·moneyTests·weeklyReviews·capabilities·백업/무음소실/손상방어) 승계 + 신규 엔티티.
 import { useSyncExternalStore } from "react";
-import { weekMonday } from "./format.js";
+import { weekMonday, isoDate } from "./format.js";
 
 const KEY = "growth-ledger:v1";
 const PRE_KEY = "growth-ledger:pre-restore"; // 파괴적 연산(import/reset) 직전 1슬롯 스냅샷
@@ -28,6 +28,44 @@ export const DELEGATE_TYPES = [
   { id: "auto", label: "자동화", kind: "ax" },
 ];
 export function delegateKind(typeId) { return DELEGATE_TYPES.find((t) => t.id === typeId)?.kind || "people"; }
+
+/* ===== 북극성 '사람 위임 완결' 단일 정의(SSOT) =====
+   '재작업 없이 상대가 실권을 받아 끝까지 소유' = met + solved_by_them + 무재작업 + 실권이양.
+   Home·Weekly·Growth·Handoffs·HandoffDetail이 모두 이 함수만 쓴다. */
+export function isRealPowerHandoff(h) {
+  const lvl = Number(h.delegationLevel) || 0;
+  const auth = (h.authority || "").trim();
+  return lvl >= 3 || (auth && auth !== "해당없음");
+}
+export function isCompletedHandoff(h) {
+  const r = (h && h.result) || {};
+  return delegateKind(h && h.delegateType) === "people"
+    && h && h.status === "done" && r.met === "met"
+    && r.autonomy === "solved_by_them" && !r.rework
+    && isRealPowerHandoff(h);
+}
+
+/* ===== 주 범위·귀속 (주간 롤업·요약 공용) ===== */
+export function weekRange(weekOf) {
+  const start = new Date(weekOf + "T00:00:00");
+  const end = new Date(start); end.setDate(end.getDate() + 7);
+  return { startKey: weekOf, endKey: isoDate(end) };
+}
+export function inWeek(iso, range) {
+  if (!iso) return false;
+  const key = String(iso).slice(0, 10);
+  return key >= range.startKey && key < range.endKey;
+}
+// 주간 위임 롤업: 수기 입력 대신 handoffs 원장에서 자동 집계(이중입력 제거).
+export function handoffRollupOfWeek(weekOf, handoffs) {
+  const r = weekRange(weekOf);
+  const list = handoffs || [];
+  const peopleCompleted = list.filter((h) => isCompletedHandoff(h) && inWeek(h.completedAt, r));
+  const peopleHandedOffList = list.filter((h) => delegateKind(h.delegateType) === "people" && inWeek(h.createdAt, r));
+  const axList = list.filter((h) => delegateKind(h.delegateType) === "ax" && inWeek(h.createdAt, r));
+  const undatedDone = list.filter((h) => isCompletedHandoff(h) && !h.completedAt).length;
+  return { peopleDone: peopleCompleted.length, peopleHandedOff: peopleHandedOffList.length, ax: axList.length, peopleCompleted, peopleHandedOffList, axList, undatedDone };
+}
 
 export const DECISION_TYPES = [
   { id: "money", label: "돈", desc: "수익·비용·투자 판단 → 머니테스트" },

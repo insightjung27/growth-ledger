@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
-  useStore, updateHandoff, removeHandoff, DELEGATE_TYPES, delegateKind, DELEGATION_LEVELS,
+  useStore, updateHandoff, removeHandoff, DELEGATE_TYPES, delegateKind, DELEGATION_LEVELS, isCompletedHandoff,
 } from "../lib/store.js";
 import { SIX_ELEMENTS, REVIEW_CHECKPOINTS } from "../lib/guidance.js";
 import { isoDate, relDate } from "../lib/format.js";
@@ -59,7 +59,7 @@ export default function HandoffDetail() {
   const northStar = kind === "people" && (h.delegationLevel >= 3 || authoritative);
   const authorityMissing = !h.authority || !h.authority.trim();
   const overdue = !!h.deadline && ["assigned", "in_progress", "review"].includes(h.status) && h.deadline < isoDate();
-  const promotable = h.status === "done" && result.met === "met" && result.autonomy === "solved_by_them" && !result.rework && reworkCount === 0;
+  const promotable = isCompletedHandoff(h) && reworkCount === 0;
 
   function updateCheckpoint(pct, patch) {
     const next = cps.map((c) => (c.milestonePct === pct ? { ...c, ...patch } : c));
@@ -79,7 +79,8 @@ export default function HandoffDetail() {
   const canComplete = !!result.met && !!result.autonomy;
   function complete() {
     if (!canComplete) return;
-    set({ status: "done", completedAt: new Date().toISOString(), result: { ...result, reworkCount } });
+    // 체크포인트에 재작업 판정이 있었으면 '무재작업 완결'로 오계상되지 않게 rework를 프리필(정직성)
+    set({ status: "done", completedAt: new Date().toISOString(), result: { ...result, reworkCount, rework: result.rework || reworkCount > 0 } });
   }
   function reopen() { set({ status: "in_progress", completedAt: null }); }
 

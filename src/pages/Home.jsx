@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStore, currentWeekKey, exportJSON, markBackup, hasRestorePoint, restorePrevious, clearRestorePoint } from "../lib/store.js";
+import { useStore, currentWeekKey, exportJSON, markBackup, hasRestorePoint, restorePrevious, clearRestorePoint, isCompletedHandoff } from "../lib/store.js";
 import { pipelineWeighted, rottingOf, stageById } from "../lib/deal.js";
 import { compute } from "../lib/money.js";
 import { won, daysBetween, weekLabel, isoDate } from "../lib/format.js";
@@ -72,8 +72,9 @@ export default function Home() {
   const hasTeam = activeMembers.length >= 1;
 
   // 이번 주 자기리뷰 작성 여부
+  // 주간 리뷰 '작성됨' 판정 — 위임은 이제 handoffs 자동 롤업이라 수기 delegated에 의존하지 않는다.
   const weeklyDone = (weeklyReviews || []).some(
-    (w) => w.weekOf === weekKey && ((w.solvedSelf || []).length || (w.delegated || []).length)
+    (w) => w.weekOf === weekKey && ((w.solvedSelf || []).length || (w.nextDelegation || "").trim() || w.pillarSnapshot)
   );
 
   // ===== 신호(오늘 할 일) 자동도출 =====
@@ -197,11 +198,7 @@ export default function Home() {
   const highHit = highConf.filter((d) => d.review.hit === "hit").length;
   const calibText = highConf.length >= REVIEW_SAMPLE ? `고확신(70%+) ${highConf.length}건 중 적중 ${highHit} — 과신 점검` : "";
   // 사람위임 완결(북극성 분자): met & 그들이 해결 & 실권이양(L3+ 또는 authority 명시)
-  const peopleDone = (handoffs || []).filter((h) => {
-    const r = h.result || {};
-    const realDelegation = (h.delegationLevel || 0) >= 3 || (h.authority && h.authority !== "해당없음" && String(h.authority).trim());
-    return h.status === "done" && r.met === "met" && r.autonomy === "solved_by_them" && realDelegation;
-  }).length;
+  const peopleDone = (handoffs || []).filter(isCompletedHandoff).length;
 
   // ===== 배너/상태 =====
   const totalRecords = (deals || []).length + (moneyTests || []).length + (decisions || []).length + (teamMembers || []).length + (handoffs || []).length + (oneOnOnes || []).length + (weeklyReviews || []).length;
@@ -292,8 +289,8 @@ export default function Home() {
       {!isEmpty && (
         <div className="stat-row section">
           <div className="stat"><div className="k">대조 적중률</div><div className="v">{hitRateText}</div><div className="d">{hitRateSub}{calibText ? <><br />{calibText}</> : null}</div></div>
-          {hasTeam ? (
-            <div className="stat"><div className="k">사람 위임 완결</div><div className="v" style={{ color: "var(--green)" }}>{peopleDone}<small>건</small></div><div className="d">실권이양(L3+/권한 명시)만 · 북극성</div></div>
+          {(hasTeam || peopleDone > 0) ? (
+            <div className="stat"><div className="k">사람 위임 완결</div><div className="v" style={{ color: "var(--green)" }}>{peopleDone}<small>건</small></div><div className="d">실권이양(L3+/권한 명시)·무재작업만 · 북극성</div></div>
           ) : (
             <div className="stat"><div className="k">사람 위임 완결</div><div className="v" style={{ color: "var(--muted-2)" }}>—</div><div className="d">팀원 추가하면 열림</div></div>
           )}

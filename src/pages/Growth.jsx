@@ -1,23 +1,14 @@
 import { Link } from "react-router-dom";
-import { useStore, delegateKind } from "../lib/store.js";
+import { useStore, delegateKind, isCompletedHandoff } from "../lib/store.js";
 import { pct } from "../lib/format.js";
 import { compute } from "../lib/money.js";
 import { CAREER_NORTHSTAR } from "../lib/guidance.js";
 
 const SAMPLE_MIN = 3; // 허영지표·거짓정밀 방지: 표본 미만이면 숫자 대신 '계측 불가'
 
-// 북극성 계상 = 실권 이양(위임수준 L3+ 또는 authority 명시)만. L1/권한없음 제외.
-function isRealPower(h) {
-  const lvl = Number(h.delegationLevel) || 0;
-  const auth = (h.authority || "").trim();
-  return lvl >= 3 || (auth && auth !== "해당없음");
-}
+// 완결 정의는 store의 isCompletedHandoff(SSOT). 여기선 '완료 위임' 분모용 보조만 로컬 유지.
 function isPeopleDone(h) {
   return delegateKind(h.delegateType) === "people" && h.status === "done";
-}
-function isCompletedHandoff(h) {
-  const res = h.result || {};
-  return isPeopleDone(h) && res.met === "met" && res.autonomy === "solved_by_them" && !res.rework && isRealPower(h);
 }
 
 // M1 변화율: 시간순 0/1 시퀀스의 최근 N건 vs 직전 N건 적중/완결율 델타(%p).
