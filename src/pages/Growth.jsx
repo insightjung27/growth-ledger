@@ -1,10 +1,9 @@
 import { Link } from "react-router-dom";
-import { useStore, setCapability, CAPABILITIES, delegateKind } from "../lib/store.js";
+import { useStore, delegateKind } from "../lib/store.js";
 import { pct } from "../lib/format.js";
 import { compute } from "../lib/money.js";
 import { CAREER_NORTHSTAR } from "../lib/guidance.js";
 
-const LEVELS = [1, 2, 3, 4, 5];
 const SAMPLE_MIN = 3; // 허영지표·거짓정밀 방지: 표본 미만이면 숫자 대신 '계측 불가'
 
 // 북극성 계상 = 실권 이양(위임수준 L3+ 또는 authority 명시)만. L1/권한없음 제외.
@@ -55,13 +54,10 @@ function Metric({ label, ready, value, unit, sub, reason, good }) {
 }
 
 export default function Growth() {
-  const caps = useStore((s) => s.capabilities);
   const decisions = useStore((s) => s.decisions);
   const handoffs = useStore((s) => s.handoffs);
   const moneyTests = useStore((s) => s.moneyTests);
   const members = useStore((s) => s.teamMembers);
-
-  const capOf = (id) => caps.find((c) => c.id === id) || { score: 3, target: 3 };
 
   // ── 결과지표(실시간 계산·표본 게이트) ──────────────────────
   // 1) 판단 적중률: 대조 완료 건 중 hit 비율
@@ -135,7 +131,7 @@ export default function Growth() {
     <div>
       <div className="page-head">
         <h1>성장 · 역량과 결과</h1>
-        <p className="sub">자가진단 점수는 출발점일 뿐입니다. 이 화면의 주인공은 아래 <b>결과지표</b> — 활동을 얼마나 했는지가 아니라, 판단이 맞았고 넘긴 일이 완결됐는지입니다.</p>
+        <p className="sub">이 화면의 주인공은 <b>결과지표</b>입니다 — 활동을 얼마나 했는지가 아니라, 판단이 맞았고 넘긴 일이 완결됐는지. 주관 자가진단 점수는 걷어냈습니다.</p>
       </div>
 
       {/* 커리어 북극성(R4) */}
@@ -246,51 +242,6 @@ export default function Growth() {
         </div>
       </div>
 
-      {/* 역량 5축 현재/목표 */}
-      <div className="section">
-        <div className="section-title">역량 5축 — 현재 / 분기 목표</div>
-        <div className="notice info" style={{ marginBottom: 12 }}>
-          서비스기획·제품이 강점이라면 흔한 갭은 <b>사업·영업(Business)</b>과 <b>위임·조직(People)</b>입니다. 딜·머니테스트가 Business를, 위임과제·1:1·주간리뷰가 People을 겨냥합니다.
-        </div>
-        <div className="stack">
-          {CAPABILITIES.map((c) => {
-            const gap = c.id === "business" || c.id === "people";
-            const { score, target } = capOf(c.id);
-            const behind = target > score;
-            return (
-              <div key={c.id} className="panel panel-pad">
-                <div className="between" style={{ marginBottom: 12, alignItems: "flex-start" }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700 }}>{c.name} <span className="muted small">· {c.ko}</span> {gap ? <span className="badge amber" style={{ marginLeft: 4 }}>보완 갭</span> : null}</div>
-                    <div className="tiny muted" style={{ marginTop: 2 }}>{c.note}</div>
-                  </div>
-                  <div className="mono" style={{ fontWeight: 800, fontSize: 18, whiteSpace: "nowrap" }}>
-                    {score}<span className="muted small">/5</span>
-                    {behind ? <span className="badge gray" style={{ marginLeft: 6 }}>목표 {target}</span> : <span className="badge green" style={{ marginLeft: 6 }}>목표 도달</span>}
-                  </div>
-                </div>
-                <div className="field" style={{ marginBottom: 10 }}>
-                  <label>현재 수준</label>
-                  <div className="seg" style={{ width: "100%" }}>
-                    {LEVELS.map((l) => (
-                      <button key={l} className={score === l ? "on" : ""} style={{ flex: 1 }} onClick={() => setCapability(c.id, { score: l })}>{l}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="field" style={{ marginBottom: 0 }}>
-                  <label>분기 목표</label>
-                  <div className="seg" style={{ width: "100%" }}>
-                    {LEVELS.map((l) => (
-                      <button key={l} className={target === l ? "on" : ""} style={{ flex: 1 }} onClick={() => setCapability(c.id, { target: l })}>{l}</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {/* 역량 ↔ 결과 매핑 */}
       <div className="section">
         <div className="section-title">역량은 결과로 증명된다</div>
@@ -312,12 +263,12 @@ export default function Growth() {
               </div>
             </div>
           </div>
-          <div className="tiny muted" style={{ marginTop: 12 }}>자가진단 점수를 올리고 싶다면 위 결과지표를 움직이세요. 점수만 올리는 것은 허영입니다.</div>
+          <div className="tiny muted" style={{ marginTop: 12 }}>역량은 결과로 증명됩니다. 위 결과지표를 움직이는 것이 곧 역량 성장이고, 자기 점수만 올리는 것은 허영입니다.</div>
         </div>
       </div>
 
       <div className="notice warn section">
-        분기 재진단: 이번 분기 목표(위 슬라이더) 대비 결과지표가 얼마나 움직였는지로 재평가하세요. 스냅샷 적재·분기 추이 차트·12주 프로그램 히트맵, 그리고 <b>머니테스트 payback 정확도</b>(실측 대비 예측 ±25% — 실측 입력 경로 필요)는 다음 버전(v3)에서 — 지금은 빈 히트맵·미완성 지표로 죄책감을 만들지 않습니다.
+        분기 재진단: 결과지표가 지난 분기 대비 얼마나 움직였는지로 재평가하세요. 스냅샷 적재·분기 추이 차트·12주 프로그램 히트맵, 그리고 <b>머니테스트 payback 정확도</b>(실측 대비 예측 ±25% — 실측 입력 경로 필요)는 다음 버전(v3)에서 — 지금은 빈 히트맵·미완성 지표로 죄책감을 만들지 않습니다.
       </div>
     </div>
   );

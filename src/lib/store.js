@@ -21,13 +21,6 @@ export const DEFAULT_STAGES = [
   { id: "won", name: "수주", prob: 1 },
   { id: "lost", name: "실패", prob: 0 },
 ];
-export const CAPABILITIES = [
-  { id: "customer", name: "Customer", ko: "고객 발견", note: "강점 — 문제를 찾는다" },
-  { id: "product", name: "Product", ko: "제품·서비스 설계", note: "매우 강점" },
-  { id: "execution", name: "Execution", ko: "실행·완결", note: "강점 — 만들어낸다" },
-  { id: "business", name: "Business·Sales", ko: "사업·영업", note: "보완 갭 — 돈·제안·협상" },
-  { id: "people", name: "People", ko: "위임·조직", note: "보완 갭 — 남에게 넘기기" },
-];
 export const DELEGATE_TYPES = [
   { id: "person", label: "사람", kind: "people" },
   { id: "outsource", label: "외주", kind: "people" },
@@ -64,12 +57,10 @@ function fresh() {
     handoffs: [],
     oneOnOnes: [],
     quarterlyGoals: [],
-    companyGoals: [],
-    capabilities: CAPABILITIES.map((c) => ({ id: c.id, score: c.id === "product" ? 5 : c.id === "business" || c.id === "people" ? 2 : 4, target: c.id === "business" || c.id === "people" ? 4 : 5, updatedAt: now })),
     meta: { createdAt: now, lastOpenedAt: now, lastBackupAt: null },
   };
 }
-const ARRAYS = ["deals", "moneyTests", "weeklyReviews", "decisions", "teamMembers", "handoffs", "oneOnOnes", "quarterlyGoals", "companyGoals", "capabilities"];
+const ARRAYS = ["deals", "moneyTests", "weeklyReviews", "decisions", "teamMembers", "handoffs", "oneOnOnes", "quarterlyGoals"];
 
 function sanitize(obj) {
   const base = fresh();
@@ -162,15 +153,8 @@ export function removeDecision(id) {
   setState((s) => ({ ...s, decisions: s.decisions.filter((x) => x.id !== id), deals: s.deals.map((d) => (d.decisionId === id ? { ...d, decisionId: null } : d)), moneyTests: s.moneyTests.map((m) => (m.decisionId === id ? { ...m, decisionId: null } : m)) }));
 }
 
-/* ===== 회사 목표 [기둥② R3] ===== */
-const _cg = coll("companyGoals", () => ({ quarter: "", title: "", description: "" }));
-export const addCompanyGoal = _cg.add, updateCompanyGoal = _cg.update, getCompanyGoal = _cg.get;
-export function removeCompanyGoal(id) {
-  setState((s) => ({ ...s, companyGoals: s.companyGoals.filter((c) => c.id !== id), quarterlyGoals: s.quarterlyGoals.map((g) => (g.companyGoalId === id ? { ...g, companyGoalId: null } : g)) }));
-}
-
 /* ===== 분기 목표 [기둥② 항목6·R3] ===== */
-const _qg = coll("quarterlyGoals", () => ({ quarter: "", title: "", successMetric: "", targetValue: "", currentValue: "", ownerMemberId: null, companyGoalId: null, status: "진행중", changeLog: [], memo: "" }));
+const _qg = coll("quarterlyGoals", () => ({ quarter: "", title: "", successMetric: "", targetValue: "", currentValue: "", ownerMemberId: null, status: "진행중", changeLog: [], memo: "" }));
 export const addGoal = _qg.add, updateGoal = _qg.update, removeGoal = _qg.remove, getGoal = _qg.get;
 export function logGoalChange(id, change) { // R3 변경 이력
   setState((s) => ({ ...s, quarterlyGoals: s.quarterlyGoals.map((g) => (g.id === id ? { ...g, changeLog: [...(g.changeLog || []), { at: new Date().toISOString(), ...change }], updatedAt: new Date().toISOString() } : g)) }));
@@ -209,9 +193,6 @@ export function upsertWeekly(weekOf, patch) {
     return { ...s, weeklyReviews: [rec, ...s.weeklyReviews] };
   });
 }
-
-/* ===== 역량 ===== */
-export function setCapability(id, patch) { setState((s) => ({ ...s, capabilities: s.capabilities.map((c) => (c.id === id ? { ...c, ...patch, updatedAt: new Date().toISOString() } : c)) })); }
 
 /* ===== 백업 ===== */
 export function exportJSON() { return JSON.stringify(state, null, 2); }

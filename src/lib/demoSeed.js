@@ -1,13 +1,10 @@
 // dev 전용 데모 데이터 — 채워진 상태 UX 점검용. 프로덕션 미사용(main.jsx에서 DEV+?seed에서만 로드).
 export const DEMO = {
   version: 2,
-  companyGoals: [
-    { id: "cg1", quarter: "2026-Q3", title: "결제 경험 개선으로 이탈 감소", description: "결제 완료율·정산 효율을 올려 하반기 매출 방어" },
-  ],
   quarterlyGoals: [
-    { id: "qg1", quarter: "2026-Q3", title: "결제완료율 68%→75%", successMetric: "결제완료율", targetValue: "75%", currentValue: "71%", ownerMemberId: "t1", companyGoalId: "cg1", status: "진행중", changeLog: [{ at: "2026-08-20T02:00:00.000Z", field: "targetValue", from: "73%", to: "75%", reason: "상반기 실적 반영 상향" }] },
-    { id: "qg2", quarter: "2026-Q3", title: "정산 대사 반복업무 월 20h 절감", successMetric: "월 절감시간", targetValue: "20h", currentValue: "8h", ownerMemberId: "t2", companyGoalId: "cg1", status: "진행중", changeLog: [] },
-    { id: "qg3", quarter: "2026-Q3", title: "개발 요청 정책누락 재작업 -30%", successMetric: "재작업 건수", targetValue: "-30%", currentValue: "-12%", ownerMemberId: null, companyGoalId: null, status: "보류", changeLog: [] },
+    { id: "qg1", quarter: "2026-Q3", title: "결제완료율 68%→75%", successMetric: "결제완료율", targetValue: "75%", currentValue: "71%", ownerMemberId: "t1", status: "진행중", changeLog: [{ at: "2026-08-20T02:00:00.000Z", field: "targetValue", from: "73%", to: "75%", reason: "상반기 실적 반영 상향" }] },
+    { id: "qg2", quarter: "2026-Q3", title: "정산 대사 반복업무 월 20h 절감", successMetric: "월 절감시간", targetValue: "20h", currentValue: "8h", ownerMemberId: "t2", status: "진행중", changeLog: [] },
+    { id: "qg3", quarter: "2026-Q3", title: "개발 요청 정책누락 재작업 -30%", successMetric: "재작업 건수", targetValue: "-30%", currentValue: "-12%", ownerMemberId: null, status: "보류", changeLog: [] },
   ],
   teamMembers: [
     { id: "t1", name: "김서연", area: "결제팀", strengths: ["결제 도메인", "꼼꼼한 정책설계"], growthAreas: ["일정 커뮤니케이션"], levelCurrent: 3, levelTarget: 4, levelHistory: [{ level: 2, at: "2026-06-01T00:00:00.000Z", note: "초기" }, { level: 3, at: "2026-08-01T00:00:00.000Z", note: "결제 이탈 개선안 무수정 승인 3회" }], projects: ["포항몰 결제 리뉴얼", "결제완료율 개선"], operations: ["결제 장애 1차 대응", "월 정산 검수"], active: true, memo: "" },
@@ -42,13 +39,6 @@ export const DEMO = {
   ],
   weeklyReviews: [
     { id: "w1", weekOf: "2026-08-24", solvedSelf: ["포항몰 제안 방향 확정", "결제사 이슈 직접 조율"], delegated: [{ id: "wd1", text: "결제 완료율 개선안 설계 → 김서연", delegateType: "person", done: false, handoffId: "h1" }, { id: "wd2", text: "정산 자동화 PoC → 박준호", delegateType: "person", done: true, handoffId: "h2" }, { id: "wd3", text: "지표 리포트 자동화", delegateType: "auto", done: true, handoffId: null }], nextDelegation: "제안서 초안 작성을 김서연에게", pillarSnapshot: null, createdAt: "2026-08-24T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z" },
-  ],
-  capabilities: [
-    { id: "customer", score: 4, target: 5, updatedAt: "2026-08-01T00:00:00.000Z" },
-    { id: "product", score: 5, target: 5, updatedAt: "2026-08-01T00:00:00.000Z" },
-    { id: "execution", score: 4, target: 5, updatedAt: "2026-08-01T00:00:00.000Z" },
-    { id: "business", score: 2, target: 4, updatedAt: "2026-08-01T00:00:00.000Z" },
-    { id: "people", score: 2, target: 4, updatedAt: "2026-08-01T00:00:00.000Z" },
   ],
   meta: { createdAt: "2026-08-01T00:00:00.000Z", lastOpenedAt: "2026-08-29T00:00:00.000Z", lastBackupAt: null },
 };

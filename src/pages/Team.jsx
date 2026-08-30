@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   useStore, addTeamMember, addGoal, updateGoal, removeGoal, logGoalChange,
-  addCompanyGoal, updateCompanyGoal, removeCompanyGoal, DELEGATION_LEVELS,
+  DELEGATION_LEVELS,
 } from "../lib/store.js";
 import { relDate } from "../lib/format.js";
 import { GUIDE_SECTIONS } from "../lib/guidance.js";
@@ -16,7 +16,6 @@ const DEF_FIELDS = [
   { key: "successMetric", label: "성공지표" },
   { key: "targetValue", label: "목표값" },
   { key: "status", label: "상태" },
-  { key: "companyGoalId", label: "회사목표 연결" },
 ];
 
 function currentQuarter(d = new Date()) {
@@ -63,7 +62,6 @@ export default function Team() {
   const nav = useNavigate();
   const members = useStore((s) => s.teamMembers).filter((m) => m.active !== false);
   const goals = useStore((s) => s.quarterlyGoals);
-  const companyGoals = useStore((s) => s.companyGoals);
   const oneOnOnes = useStore((s) => s.oneOnOnes);
   const handoffs = useStore((s) => s.handoffs);
 
@@ -73,7 +71,6 @@ export default function Team() {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: "", area: "", levelCurrent: 2, levelTarget: 3, strengths: "", growthAreas: "" });
   const [goalModal, setGoalModal] = useState(null); // {mode:'add'|'edit', goal}
-  const [cgModal, setCgModal] = useState(null); // {mode, goal}
 
   function submitMember(openProfile) {
     if (!draft.name.trim()) return;
@@ -183,35 +180,6 @@ export default function Team() {
         </>
       )}
 
-      {/* 회사목표 관리 */}
-      <div className="section">
-        <div className="between" style={{ marginBottom: 10 }}>
-          <div className="section-title" style={{ marginBottom: 0 }}>회사목표 (분기목표 연결용)</div>
-          <button className="btn btn-sm" onClick={() => setCgModal({ mode: "add", goal: null })}>+ 회사목표</button>
-        </div>
-        <div className="notice info" style={{ marginBottom: 12 }}>
-          팀 분기목표는 회사목표에서 내려와야 정렬됩니다. 여기서 회사목표를 등록하고, 각 분기목표에 연결하세요.
-        </div>
-        <div className="panel panel-pad">
-          {companyGoals.length === 0 ? (
-            <div className="muted small">아직 등록된 회사목표가 없습니다. 상위 방향을 한 줄로 적어두면 팀 목표와의 정렬을 확인할 수 있습니다.</div>
-          ) : (
-            <div className="stack">
-              {companyGoals.map((c) => (
-                <div key={c.id} className="li">
-                  <div className="li-main">
-                    <div className="li-title">{c.title || "(제목 없음)"} {c.quarter ? <span className="muted small" style={{ fontWeight: 500 }}>· {c.quarter}</span> : null}</div>
-                    {c.description ? <div className="li-sub">{c.description}</div> : null}
-                  </div>
-                  <button className="btn btn-sm btn-ghost" onClick={() => setCgModal({ mode: "edit", goal: c })}>편집</button>
-                  <button className="x" aria-label="삭제" onClick={() => { if (confirm("이 회사목표를 삭제할까요? 연결된 분기목표의 연결이 해제됩니다.")) removeCompanyGoal(c.id); }}>×</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* 팀 분기목표 3개 섹션 */}
       <div className="section">
         <div className="between" style={{ marginBottom: 10 }}>
@@ -241,7 +209,6 @@ export default function Team() {
             <div className="stack">
               {qGoals.map((g) => {
                 const p = goalProgress(g);
-                const cg = g.companyGoalId ? companyGoals.find((c) => c.id === g.companyGoalId) : null;
                 const owner = g.ownerMemberId ? members.find((m) => m.id === g.ownerMemberId) : null;
                 return (
                   <div key={g.id} style={{ padding: "12px 0", borderBottom: "1px solid var(--line-2)" }}>
@@ -270,10 +237,11 @@ export default function Team() {
                       </div>
                     )}
 
-                    <div className="gap-wrap" style={{ marginTop: 8 }}>
-                      {cg ? <span className="chip">회사목표: {cg.title}</span> : <span className="tiny muted">회사목표 미연결</span>}
-                      {owner ? <span className="chip">담당: {owner.name}</span> : null}
-                    </div>
+                    {owner ? (
+                      <div className="gap-wrap" style={{ marginTop: 8 }}>
+                        <span className="chip">담당: {owner.name}</span>
+                      </div>
+                    ) : null}
 
                     {(g.changeLog || []).length > 0 && (
                       <details style={{ marginTop: 8 }}>
@@ -345,37 +313,23 @@ export default function Team() {
           data={goalModal}
           quarter={quarter}
           members={members}
-          companyGoals={companyGoals}
           qGoalCount={qGoals.length}
           onClose={() => setGoalModal(null)}
         />
-      )}
-
-      {cgModal && (
-        <CompanyGoalModal data={cgModal} quarter={quarter} onClose={() => setCgModal(null)} />
       )}
     </div>
   );
 }
 
-function GoalModal({ data, quarter, members, companyGoals, qGoalCount = 0, onClose }) {
+function GoalModal({ data, quarter, members, qGoalCount = 0, onClose }) {
   const editing = data.mode === "edit";
   const g = data.goal;
   const [form, setForm] = useState(
     editing
-      ? { title: g.title || "", successMetric: g.successMetric || "", targetValue: g.targetValue || "", currentValue: g.currentValue || "", status: g.status || "진행중", companyGoalId: g.companyGoalId || "", ownerMemberId: g.ownerMemberId || "" }
-      : { title: "", successMetric: "", targetValue: "", currentValue: "", status: "진행중", companyGoalId: "", ownerMemberId: "" }
+      ? { title: g.title || "", successMetric: g.successMetric || "", targetValue: g.targetValue || "", currentValue: g.currentValue || "", status: g.status || "진행중", ownerMemberId: g.ownerMemberId || "" }
+      : { title: "", successMetric: "", targetValue: "", currentValue: "", status: "진행중", ownerMemberId: "" }
   );
   const [reason, setReason] = useState("");
-  const [cgTitle, setCgTitle] = useState("");
-
-  // 회사목표 0개일 때 모달 안에서 바로 등록하고 자동 연결
-  function addInlineCg() {
-    if (!cgTitle.trim()) return;
-    const id = addCompanyGoal({ title: cgTitle.trim(), quarter });
-    setForm((f) => ({ ...f, companyGoalId: id }));
-    setCgTitle("");
-  }
 
   // 변경된 '정의' 필드 계산 (진척=currentValue 제외)
   const changed = editing
@@ -389,19 +343,19 @@ function GoalModal({ data, quarter, members, companyGoals, qGoalCount = 0, onClo
     const patch = {
       title: form.title.trim(), successMetric: form.successMetric.trim(),
       targetValue: form.targetValue.trim(), currentValue: form.currentValue.trim(),
-      status: form.status, companyGoalId: form.companyGoalId || null, ownerMemberId: form.ownerMemberId || null,
+      status: form.status, ownerMemberId: form.ownerMemberId || null,
     };
     if (editing) {
       updateGoal(g.id, patch);
       // R3 — 정의 변경마다 사유와 함께 이력 기록
-      changed.forEach((f) => logGoalChange(g.id, { field: f.key, from: labelFor(f.key, g[f.key], companyGoals), to: labelFor(f.key, form[f.key], companyGoals), reason: reason.trim() }));
+      changed.forEach((f) => logGoalChange(g.id, { field: f.key, from: labelFor(f.key, g[f.key]), to: labelFor(f.key, form[f.key]), reason: reason.trim() }));
       onClose();
       return;
     }
     addGoal({ ...patch, quarter });
     if (keepOpen) {
-      // '하나 더 추가' — 폼만 리셋하고 모달 유지 (회사목표 연결은 이어가기 편하게 유지)
-      setForm({ title: "", successMetric: "", targetValue: "", currentValue: "", status: "진행중", companyGoalId: form.companyGoalId, ownerMemberId: "" });
+      // '하나 더 추가' — 폼만 리셋하고 모달 유지
+      setForm({ title: "", successMetric: "", targetValue: "", currentValue: "", status: "진행중", ownerMemberId: "" });
     } else {
       onClose();
     }
@@ -447,24 +401,6 @@ function GoalModal({ data, quarter, members, companyGoals, qGoalCount = 0, onClo
           </select>
         </div>
       </div>
-      <div className="field">
-        <label>회사목표 연결 <span className="muted small">(정렬)</span></label>
-        {companyGoals.length === 0 ? (
-          <div className="notice info">
-            먼저 회사목표를 등록하세요. 팀 분기목표는 회사목표에서 내려와야 정렬됩니다.
-            <div className="between" style={{ gap: 8, marginTop: 8 }}>
-              <input className="input" value={cgTitle} placeholder="회사목표 (예: 결제 매출 20% 성장)" onKeyDown={(e) => { if (e.key === "Enter") addInlineCg(); }} onChange={(e) => setCgTitle(e.target.value)} />
-              <button className="btn btn-sm btn-primary" onClick={addInlineCg} disabled={!cgTitle.trim()}>회사목표 추가</button>
-            </div>
-          </div>
-        ) : (
-          <select className="select" value={form.companyGoalId} onChange={(e) => setForm({ ...form, companyGoalId: e.target.value })}>
-            <option value="">연결 안 함</option>
-            {companyGoals.map((c) => (<option key={c.id} value={c.id}>{c.title}</option>))}
-          </select>
-        )}
-      </div>
-
       {needReason && (
         <div className="field">
           <label>변경 사유 <span style={{ color: "var(--red)" }}>*</span> <span className="muted small">({changed.map((f) => f.label).join(", ")} 변경)</span></label>
@@ -476,42 +412,6 @@ function GoalModal({ data, quarter, members, companyGoals, qGoalCount = 0, onClo
   );
 }
 
-function labelFor(key, val, companyGoals) {
-  if (key === "companyGoalId") return val ? (companyGoals.find((c) => c.id === val)?.title || "(연결)") : "";
+function labelFor(key, val) {
   return val || "";
-}
-
-function CompanyGoalModal({ data, quarter, onClose }) {
-  const editing = data.mode === "edit";
-  const c = data.goal;
-  const [form, setForm] = useState(
-    editing ? { title: c.title || "", quarter: c.quarter || quarter, description: c.description || "" } : { title: "", quarter, description: "" }
-  );
-  function save() {
-    if (!form.title.trim()) return;
-    const patch = { title: form.title.trim(), quarter: form.quarter.trim(), description: form.description.trim() };
-    if (editing) updateCompanyGoal(c.id, patch);
-    else addCompanyGoal(patch);
-    onClose();
-  }
-  return (
-    <Modal
-      title={editing ? "회사목표 편집" : "회사목표 추가"}
-      onClose={onClose}
-      footer={<><button className="btn" onClick={onClose}>취소</button><button className="btn btn-primary" onClick={save} disabled={!form.title.trim()}>저장</button></>}
-    >
-      <div className="field">
-        <label>회사목표 <span style={{ color: "var(--red)" }}>*</span></label>
-        <input className="input" autoFocus value={form.title} placeholder="예: 결제 부문 매출 20% 성장" onKeyDown={(e) => { if (e.key === "Enter") save(); }} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-      </div>
-      <div className="field">
-        <label>분기</label>
-        <input className="input" value={form.quarter} placeholder="예: 2026-Q3" onChange={(e) => setForm({ ...form, quarter: e.target.value })} />
-      </div>
-      <div className="field">
-        <label>설명 <span className="muted small">(선택)</span></label>
-        <textarea className="textarea" value={form.description} placeholder="배경·맥락" onChange={(e) => setForm({ ...form, description: e.target.value })} />
-      </div>
-    </Modal>
-  );
 }
