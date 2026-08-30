@@ -5,6 +5,7 @@ import { pipelineWeighted, rottingOf, stageById } from "../lib/deal.js";
 import { compute } from "../lib/money.js";
 import { won, daysBetween, weekLabel, isoDate } from "../lib/format.js";
 import { CAREER_NORTHSTAR, LEADER_RHYTHM } from "../lib/guidance.js";
+import HowTo from "../components/HowTo.jsx";
 
 // 대조(리뷰) 표본 임계 — 이 미만이면 결과신호를 '계측 불가'로 표기(허영지표 차단).
 const REVIEW_SAMPLE = 3;
@@ -248,6 +249,8 @@ export default function Home() {
           <div className="tiny muted" style={{ textAlign: "right", whiteSpace: "nowrap" }}>{isoDate(now)}{isFriday ? " · 금요일" : ""}<br />이번 주 {weekLabel(weekKey)}</div>
         </div>
       </div>
+
+      <HowTo screen="home" />
 
       {restorable && (
         <div className="notice info section between" style={{ alignItems: "center" }}>

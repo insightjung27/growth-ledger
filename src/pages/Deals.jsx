@@ -4,6 +4,7 @@ import { useStore, addDeal, DEFAULT_STAGES } from "../lib/store.js";
 import { won, manToWon } from "../lib/format.js";
 import { stageById, rottingOf } from "../lib/deal.js";
 import Modal from "../components/Modal.jsx";
+import HowTo from "../components/HowTo.jsx";
 
 export default function Deals() {
   const deals = useStore((s) => s.deals);
@@ -55,6 +56,8 @@ export default function Deals() {
         </div>
         <button className="btn btn-primary" onClick={() => setAdding(true)}>+ 딜 추가</button>
       </div>
+
+      <HowTo screen="deals" />
 
       <div className="stat-row section">
         <div className="stat"><div className="k">가중 파이프라인</div><div className="v">{won(weighted)}</div><div className="d">확률 반영 기대 총액 · 수주확정 제외</div></div>

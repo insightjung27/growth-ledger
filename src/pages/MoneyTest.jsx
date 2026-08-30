@@ -5,6 +5,7 @@ import { addMoneyTest, updateMoneyTest, removeMoneyTest, getMoneyTest, addDecisi
 import { won, pct, months as fmtMonths, manToWon, wonToMan } from "../lib/format.js";
 import { CashflowChart } from "../components/Charts.jsx";
 import AutoSaved from "../components/AutoSaved.jsx";
+import HowTo from "../components/HowTo.jsx";
 
 const DRAFT_KEY = "growth-ledger:mt-draft";
 
@@ -150,6 +151,8 @@ export default function MoneyTest() {
         <h1>사업성 머니테스트</h1>
         <p className="sub">쉬운 질문 몇 개로 "이거 돈 될까"를 신호등으로 판정합니다. 모르는 값은 '추정'으로 두고, 결과는 정직하게 노랑에서 멈춥니다.</p>
       </div>
+
+      <HowTo screen="money" />
       {existing && (existing.dealId || existing.decisionId) && (
         <div className="section" style={{ marginTop: -6 }}>
           {existing.dealId && <Link to={"/deals/" + existing.dealId} className="tiny">← {getDeal(existing.dealId)?.name || "딜"}(으)로</Link>}

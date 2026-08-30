@@ -4,6 +4,7 @@ import { useStore, addDecision, DECISION_TYPES } from "../lib/store.js";
 import { isoDate, daysBetween } from "../lib/format.js";
 import { DECISION_FRAMES } from "../lib/guidance.js";
 import Modal from "../components/Modal.jsx";
+import HowTo from "../components/HowTo.jsx";
 
 const OVERDUE_LIMIT = 3; // 미대조 3건 초과면 신규 생성 전 대조를 권고(차단 아님)
 
@@ -143,6 +144,8 @@ export default function Decisions() {
         </div>
         <button className="btn btn-primary" onClick={() => setAdding(true)}>+ 신규 판단</button>
       </div>
+
+      <HowTo screen="decisions" />
 
       <div className="stat-row section">
         <div className="stat"><div className="k">작성·검증 중</div><div className="v">{verifyingCount}<small>건</small></div><div className="d">아직 결정 전</div></div>

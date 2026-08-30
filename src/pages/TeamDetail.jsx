@@ -4,10 +4,18 @@ import {
   useStore, updateTeamMember, removeTeamMember, setMemberLevel, DELEGATION_LEVELS,
 } from "../lib/store.js";
 import { relDate } from "../lib/format.js";
-import { GUIDE_SECTIONS } from "../lib/guidance.js";
+import { GUIDE_SECTIONS, EVAL_AXES } from "../lib/guidance.js";
 import AutoSaved from "../components/AutoSaved.jsx";
 
 const DELEGATE_GUIDE = GUIDE_SECTIONS.find((s) => s.id === "delegate");
+
+// 성과 평가 — 기대값 대비 결과(호감도 아님)
+const PERF_TIERS = [
+  { id: "high", label: "고성과", cls: "green", desc: "기대 초과 — 더 큰 문제(업무→프로젝트→영역→결정권)로 확대·승급 후보" },
+  { id: "meets", label: "기대 충족", cls: "gray", desc: "기대 수준 달성 — 다음 초점을 정한다" },
+  { id: "low", label: "저성과", cls: "red", desc: "기대 미달 — 사실+기대수준을 명확히 하고 개선 기한·점검 지점을 정한다" },
+];
+const AXIS_LEVELS = [["low", "미흡"], ["meets", "충족"], ["high", "탁월"]];
 const HO_STATUS = { assigned: "할당", in_progress: "진행중", review: "리뷰", done: "완결", blocked: "막힘" };
 
 function promotionSignal(handoffs) {
@@ -89,6 +97,10 @@ export default function TeamDetail() {
   }
 
   const set = (patch) => updateTeamMember(member.id, patch);
+  const perf = member.performance || { tier: "", axes: {}, evidence: "", plan: "" };
+  const tierObj = PERF_TIERS.find((t) => t.id === perf.tier);
+  const setPerf = (patch) => set({ performance: { ...perf, ...patch, updatedAt: new Date().toISOString() } });
+  const setAxis = (k, v) => { const axes = { ...(perf.axes || {}) }; axes[k] = axes[k] === v ? "" : v; setPerf({ axes }); };
   const promo = promotionSignal(handoffs);
   const atTarget = member.levelCurrent === member.levelTarget;
   const targetLow = member.levelTarget < member.levelCurrent;
@@ -154,6 +166,53 @@ export default function TeamDetail() {
         </div>
         <ChipEditor label="강점" items={member.strengths} placeholder="강점을 적고 Enter" onChange={(v) => set({ strengths: v })} />
         <ChipEditor label="성장영역" items={member.growthAreas} placeholder="성장영역을 적고 Enter" onChange={(v) => set({ growthAreas: v })} />
+      </div>
+
+      {/* 성과 평가 */}
+      <div className="section">
+        <div className="section-title">성과 평가 — 기대값 대비 결과</div>
+        <div className="panel panel-pad">
+          <div className="notice info" style={{ marginBottom: 12 }}>
+            호감도가 아니라 <b>기대값 대비 결과</b>로 봅니다. 4축을 평가하고 종합 등급을 정하세요 — 저성과는 사실+기대수준으로, 고성과는 더 큰 문제로.
+          </div>
+
+          <div className="field">
+            <label>종합 등급</label>
+            <div className="tagset">
+              {PERF_TIERS.map((t) => (
+                <button key={t.id} className={perf.tier === t.id ? "on" : ""} style={perf.tier === t.id ? { borderColor: `var(--${t.cls === "gray" ? "muted-2" : t.cls})`, color: `var(--${t.cls === "gray" ? "ink" : t.cls})` } : undefined} onClick={() => setPerf({ tier: perf.tier === t.id ? "" : t.id })}>{t.label}</button>
+              ))}
+            </div>
+            <div className="hint">{tierObj ? tierObj.desc : "미평가 — 등급을 선택하세요"}</div>
+          </div>
+
+          <div className="field">
+            <label>평가 축 <span className="muted small">(4축 + 시니어 성장기여)</span></label>
+            <div className="stack" style={{ gap: 10 }}>
+              {EVAL_AXES.map((a) => (
+                <div key={a.key} className="between" style={{ gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ minWidth: 0 }}><div className="li-title" style={{ fontSize: 13.5 }}>{a.label} <span className="muted small">· {a.desc}</span></div></div>
+                  <div className="seg" style={{ flex: "0 0 auto" }}>
+                    {AXIS_LEVELS.map(([v, lab]) => (
+                      <button key={v} className={(perf.axes || {})[a.key] === v ? "on" : ""} onClick={() => setAxis(a.key, v)}>{lab}</button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="field">
+            <label>사실 근거 <span className="muted small">(호감이 아니라 사실·수치·사례)</span></label>
+            <textarea className="textarea" value={perf.evidence || ""} placeholder="예: 3개 프로젝트 중 2개 기한 초과, 재작업 2회 / 또는 결제 전환율 개선안을 스스로 완결" onChange={(e) => setPerf({ evidence: e.target.value })} />
+          </div>
+
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>{perf.tier === "low" ? "개선 계획 (사실 + 기대수준 + 기한·점검 지점)" : perf.tier === "high" ? "다음 큰 문제 (승급·확대)" : "다음 액션"}</label>
+            <textarea className="textarea" value={perf.plan || ""} placeholder={perf.tier === "low" ? "기대수준을 명확히 하고 개선 기한과 중간 점검 지점을 정하세요" : perf.tier === "high" ? "업무 → 프로젝트 → 영역 → 결정권 → 사람. 다음 단계로 무엇을 맡길지" : "다음 분기 초점"} onChange={(e) => setPerf({ plan: e.target.value })} />
+            {perf.updatedAt ? <div style={{ marginTop: 6 }}><span className="tiny muted">최근 평가 {relDate(perf.updatedAt)}</span></div> : null}
+          </div>
+        </div>
       </div>
 
       {/* 위임수준 */}

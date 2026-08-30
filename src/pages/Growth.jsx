@@ -3,6 +3,7 @@ import { useStore, delegateKind, isCompletedHandoff } from "../lib/store.js";
 import { pct } from "../lib/format.js";
 import { compute } from "../lib/money.js";
 import { CAREER_NORTHSTAR } from "../lib/guidance.js";
+import HowTo from "../components/HowTo.jsx";
 
 const SAMPLE_MIN = 3; // 허영지표·거짓정밀 방지: 표본 미만이면 숫자 대신 '계측 불가'
 
@@ -124,6 +125,8 @@ export default function Growth() {
         <h1>성장 · 역량과 결과</h1>
         <p className="sub">이 화면의 주인공은 <b>결과지표</b>입니다 — 활동을 얼마나 했는지가 아니라, 판단이 맞았고 넘긴 일이 완결됐는지. 주관 자가진단 점수는 걷어냈습니다.</p>
       </div>
+
+      <HowTo screen="growth" />
 
       {/* 커리어 북극성(R4) */}
       <div className="section">

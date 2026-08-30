@@ -122,7 +122,7 @@ function sanitize(obj) {
     checkpoints: [], ...x,
     result: { met: "", rework: false, reworkCount: 0, autonomy: "", reviewNote: "", valueRealized: "", ...(x && x.result) },
   }));
-  s.teamMembers = s.teamMembers.map((x) => ({ strengths: [], growthAreas: [], levelHistory: [], projects: [], operations: [], ...x }));
+  s.teamMembers = s.teamMembers.map((x) => ({ strengths: [], growthAreas: [], levelHistory: [], projects: [], operations: [], ...x, performance: { tier: "", axes: {}, evidence: "", plan: "", updatedAt: null, ...(x && x.performance) } }));
   s.oneOnOnes = s.oneOnOnes.map((x) => ({ actionItems: [], carriedOver: [], ...x }));
   s.quarterlyGoals = s.quarterlyGoals.map((x) => ({ changeLog: [], ...x }));
   return s;
@@ -199,7 +199,7 @@ export function logGoalChange(id, change) { // R3 변경 이력
 }
 
 /* ===== 팀원 [기둥② R2] ===== */
-const _tm = coll("teamMembers", () => ({ name: "", area: "", strengths: [], growthAreas: [], levelCurrent: 2, levelTarget: 3, levelHistory: [], projects: [], operations: [], active: true, memo: "" }));
+const _tm = coll("teamMembers", () => ({ name: "", area: "", strengths: [], growthAreas: [], levelCurrent: 2, levelTarget: 3, levelHistory: [], projects: [], operations: [], active: true, memo: "", performance: { tier: "", axes: {}, evidence: "", plan: "", updatedAt: null } }));
 export const addTeamMember = _tm.add, removeTeamMember = _tm.remove, getTeamMember = _tm.get;
 export function updateTeamMember(id, patch) { _tm.update(id, patch); }
 export function setMemberLevel(id, level, evidence) { // 위임수준 변경 — 근거참조 필수

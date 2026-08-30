@@ -6,6 +6,7 @@ import {
 import { SIX_ELEMENTS, REVIEW_CHECKPOINTS } from "../lib/guidance.js";
 import { isoDate, daysBetween, relDate } from "../lib/format.js";
 import Modal from "../components/Modal.jsx";
+import HowTo from "../components/HowTo.jsx";
 
 // ===== 상태 표기 =====
 const STATUS = {
@@ -92,6 +93,8 @@ export default function Handoffs() {
         </div>
         <button className="btn btn-primary" onClick={() => setWizard(true)}>위임 넘기기</button>
       </div>
+
+      <HowTo screen="handoffs" />
 
       {/* 6요소 지침 — 왜 이걸 하나. 과제가 있으면 접어둔다(빈 상태에서만 펼침). */}
       {handoffs.length === 0 ? (

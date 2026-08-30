@@ -7,6 +7,7 @@ import {
 import { relDate } from "../lib/format.js";
 import { GUIDE_SECTIONS } from "../lib/guidance.js";
 import Modal from "../components/Modal.jsx";
+import HowTo from "../components/HowTo.jsx";
 
 const GOALS_GUIDE = GUIDE_SECTIONS.find((s) => s.id === "goals");
 const DELEGATE_GUIDE = GUIDE_SECTIONS.find((s) => s.id === "delegate");
@@ -105,6 +106,8 @@ export default function Team() {
         <button className="btn btn-primary" onClick={() => setAdding(true)}>+ 팀원 추가</button>
       </div>
 
+      <HowTo screen="team" />
+
       {members.length === 0 ? (
         // 진입 온보딩 게이트 — 위임 가능한 사람이 있는가
         <div className="section">
@@ -168,6 +171,7 @@ export default function Team() {
                           </span>
                           {promo ? <span className="badge green">승급 후보 신호</span> : null}
                           {targetLow ? <span className="badge red">목표 &lt; 현재</span> : null}
+                          {m.performance && m.performance.tier ? <span className={"badge " + (m.performance.tier === "high" ? "green" : m.performance.tier === "low" ? "red" : "gray")}>{m.performance.tier === "high" ? "고성과" : m.performance.tier === "low" ? "저성과" : "기대 충족"}</span> : null}
                         </div>
                       </div>
                       <span className="btn btn-sm btn-ghost" style={{ pointerEvents: "none" }}>열기 →</span>

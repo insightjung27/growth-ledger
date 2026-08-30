@@ -4,6 +4,7 @@ import { useStore, addOneOnOne, updateOneOnOne, removeOneOnOne, uid } from "../l
 import { isoDate, relDate } from "../lib/format.js";
 import { ONE_ON_ONE } from "../lib/guidance.js";
 import Modal from "../components/Modal.jsx";
+import HowTo from "../components/HowTo.jsx";
 
 // 아젠다 4구간(코칭 지침 structure에 매핑) — 팀원이 가져온 주제(memberAgenda)를 맨 위로.
 const AGENDA_FIELDS = [
@@ -161,6 +162,8 @@ export default function OneOnOnes() {
         </div>
         <button className="btn btn-primary" disabled={noMembers} onClick={() => { setNewMember(memberFilter || (members[0]?.id || "")); setNewDate(isoDate()); setShowNew(true); }}>새 1:1</button>
       </div>
+
+      <HowTo screen="oneonone" />
 
       {noMembers && (
         <div className="section">
