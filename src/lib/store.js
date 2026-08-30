@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { weekMonday } from "./format.js";
 
 const KEY = "growth-ledger:v1";
+const PRE_KEY = "growth-ledger:pre-restore"; // 파괴적 연산(import/reset) 직전 1슬롯 스냅샷
 const listeners = new Set();
 
 export function uid() {
@@ -223,6 +224,22 @@ export function importJSON(text) {
     if (!(k in parsed)) throw new Error(`성장원장 백업 형식이 아닙니다(${k} 없음).`);
     if (!Array.isArray(parsed[k])) throw new Error(`백업이 손상됐습니다(${k}가 목록이 아님).`);
   }
+  try { localStorage.setItem(PRE_KEY, JSON.stringify(state)); } catch (e) {} // 덮어쓰기 직전 스냅샷
   state = sanitize(parsed); emit();
 }
-export function resetAll() { state = fresh(); emit(); }
+export function resetAll() {
+  try { localStorage.setItem(PRE_KEY, JSON.stringify(state)); } catch (e) {} // 초기화 직전 스냅샷
+  state = fresh(); emit();
+}
+/* 파괴적 연산 되돌리기(1슬롯) */
+export function hasRestorePoint() { try { return !!localStorage.getItem(PRE_KEY); } catch (e) { return false; } }
+export function restorePrevious() {
+  try {
+    const raw = localStorage.getItem(PRE_KEY);
+    if (!raw) return false;
+    state = sanitize(JSON.parse(raw)); emit();
+    try { localStorage.removeItem(PRE_KEY); } catch (e2) {}
+    return true;
+  } catch (e) { return false; }
+}
+export function clearRestorePoint() { try { localStorage.removeItem(PRE_KEY); } catch (e) {} }

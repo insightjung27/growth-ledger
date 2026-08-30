@@ -170,7 +170,7 @@ export default function Weekly() {
           <div className="between" style={{ marginTop: 14, flexWrap: "wrap", gap: 10 }}>
             <div className="tiny muted">
               {frozen
-                ? `동결 시각 ${relDate(frozen.frozenAt)} — 마감된 회계처럼 이후 활동으로 바뀌지 않습니다.`
+                ? `마감 시점(${relDate(frozen.frozenAt)}) 값으로 고정했습니다. 필요하면 아래에서 해제해 다시 마감할 수 있습니다.`
                 : "저장(동결) 전까지는 실시간 값입니다. 주를 마감하면 그 시점 값으로 고정됩니다."}
             </div>
             {frozen ? (
@@ -184,7 +184,7 @@ export default function Weekly() {
 
       {/* 3스탯: 결과신호 전면 */}
       <div className="stat-row section">
-        <div className="stat"><div className="k">북극성 — 사람 위임 완결</div><div className="v" style={{ color: "var(--green)" }}>{st.peopleDone}<small>건</small></div><div className="d">넘긴 {st.peopleTotal}건 중 완결 · {weekLabel(weekKey)}</div></div>
+        <div className="stat"><div className="k">사람 위임 완결 · 회고 표시</div><div className="v" style={{ color: "var(--ink-2)" }}>{st.peopleDone}<small>건</small></div><div className="d">이 주 체크 기준(비검증) · 정식 북극성은 홈에서 실권이양(L3+/권한명시) 게이트로 계산</div></div>
         <div className="stat"><div className="k">직접 푼 문제</div><div className="v">{st.s}<small>건</small></div><div className="d">내가 처리</div></div>
         <div className="stat"><div className="k">AX 레버리지</div><div className="v">{st.ax}<small>건</small></div><div className="d">AI·자동화(별도 분모)</div></div>
       </div>

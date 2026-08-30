@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStore, currentWeekKey } from "../lib/store.js";
+import { useStore, currentWeekKey, exportJSON, markBackup, hasRestorePoint, restorePrevious, clearRestorePoint } from "../lib/store.js";
 import { pipelineWeighted, rottingOf, stageById } from "../lib/deal.js";
 import { compute } from "../lib/money.js";
 import { won, daysBetween, weekLabel, isoDate } from "../lib/format.js";
@@ -49,6 +49,18 @@ function meaningfulActions(list) {
 export default function Home() {
   const state = useStore();
   const nav = useNavigate();
+  const [restorable, setRestorable] = useState(() => hasRestorePoint());
+  function doBackup() {
+    const blob = new Blob([exportJSON()], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `성장원장-백업-${isoDate(new Date())}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    markBackup();
+  }
+  function doRestore() { if (restorePrevious()) { setRestorable(false); alert("직전 상태로 되돌렸습니다."); } }
+  function dismissRestore() { clearRestorePoint(); setRestorable(false); }
   const { deals, moneyTests, decisions, teamMembers, handoffs, oneOnOnes, quarterlyGoals, weeklyReviews, meta } = state;
 
   const now = new Date();
@@ -180,6 +192,10 @@ export default function Home() {
   const hits = reviewed.filter((d) => d.review.hit === "hit").length;
   const hitRateText = reviewed.length >= REVIEW_SAMPLE ? Math.round((hits / reviewed.length) * 100) + "%" : "계측 불가";
   const hitRateSub = reviewed.length >= REVIEW_SAMPLE ? `대조 ${reviewed.length}건 중 적중 ${hits}` : `표본 ${reviewed.length}/${REVIEW_SAMPLE} — 대조 더 쌓기`;
+  // 캘리브레이션(과신 점검): 고확신인데 빗나감이면 과신 — 훈련해야 할 진짜 판단력 신호. 표본 미달이면 미표시(허영지표 차단).
+  const highConf = reviewed.filter((d) => (d.prediction?.confidence || 0) >= 70);
+  const highHit = highConf.filter((d) => d.review.hit === "hit").length;
+  const calibText = highConf.length >= REVIEW_SAMPLE ? `고확신(70%+) ${highConf.length}건 중 적중 ${highHit} — 과신 점검` : "";
   // 사람위임 완결(북극성 분자): met & 그들이 해결 & 실권이양(L3+ 또는 authority 명시)
   const peopleDone = (handoffs || []).filter((h) => {
     const r = h.result || {};
@@ -236,6 +252,16 @@ export default function Home() {
         </div>
       </div>
 
+      {restorable && (
+        <div className="notice info section between" style={{ alignItems: "center" }}>
+          <span>방금 <b>덮어쓰기 또는 초기화</b>를 되돌릴 수 있습니다. 잘못 불러왔다면 직전 상태로 복구하세요.</span>
+          <span className="gap-wrap" style={{ flex: "0 0 auto" }}>
+            <button className="btn btn-sm btn-primary" onClick={doRestore}>되돌리기</button>
+            <button className="btn btn-sm btn-ghost" onClick={dismissRestore}>닫기</button>
+          </span>
+        </div>
+      )}
+
       {hardOverdue && (
         <div className="notice warn section">
           <b>미대조 판단 {overdueCount}건</b> — 대조 기한이 지난 판단이 {OVERDUE_LIMIT}건을 넘었습니다. 대조 루프가 닫히지 않으면 판단력 주장이 무너집니다. 신규 판단보다 먼저 밀린 대조부터 권합니다 — <b>판단 원장</b>에서 예측 vs 실제를 대조하세요.
@@ -245,7 +271,8 @@ export default function Home() {
 
       {showBackup && (
         <div className="notice warn section between" style={{ alignItems: "center" }}>
-          <span>{daysSinceBackup == null ? "아직 백업한 적이 없습니다. 데이터는 이 브라우저에만 있습니다." : `마지막 백업 ${daysSinceBackup}일 전.`} 상단 "내보내기"로 지금 백업하세요.</span>
+          <span>{daysSinceBackup == null ? "아직 백업한 적이 없습니다. 데이터는 이 브라우저에만 있습니다." : `마지막 백업 ${daysSinceBackup}일 전.`} 지금 백업하세요. · iOS Safari는 오래 안 열면 저장 데이터를 지울 수 있어 정기 백업이 필요합니다.</span>
+          <button className="btn btn-sm btn-primary" style={{ flex: "0 0 auto" }} onClick={doBackup}>지금 내보내기</button>
         </div>
       )}
 
@@ -264,13 +291,13 @@ export default function Home() {
       {/* ===== 지표 타일 — 결과신호 우선 ===== */}
       {!isEmpty && (
         <div className="stat-row section">
-          <div className="stat"><div className="k">가중 파이프라인</div><div className="v">{won(weighted)}</div><div className="d">열린 딜 {(deals || []).filter((d) => d.stageId !== "lost" && d.stageId !== "won").length}건</div></div>
-          <div className="stat"><div className="k">대조 적중률</div><div className="v">{hitRateText}</div><div className="d">{hitRateSub}</div></div>
+          <div className="stat"><div className="k">대조 적중률</div><div className="v">{hitRateText}</div><div className="d">{hitRateSub}{calibText ? <><br />{calibText}</> : null}</div></div>
           {hasTeam ? (
             <div className="stat"><div className="k">사람 위임 완결</div><div className="v" style={{ color: "var(--green)" }}>{peopleDone}<small>건</small></div><div className="d">실권이양(L3+/권한 명시)만 · 북극성</div></div>
           ) : (
             <div className="stat"><div className="k">사람 위임 완결</div><div className="v" style={{ color: "var(--muted-2)" }}>—</div><div className="d">팀원 추가하면 열림</div></div>
           )}
+          <div className="stat"><div className="k">가중 파이프라인</div><div className="v">{won(weighted)}</div><div className="d">열린 딜 {(deals || []).filter((d) => d.stageId !== "lost" && d.stageId !== "won").length}건</div></div>
         </div>
       )}
 

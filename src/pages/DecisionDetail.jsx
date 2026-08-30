@@ -4,9 +4,22 @@ import { useStore, updateDecision, removeDecision, DECISION_TYPES, uid, addMoney
 import { defaultInputs } from "../lib/money.js";
 import { isoDate } from "../lib/format.js";
 import { DECISION_FRAMES } from "../lib/guidance.js";
+import { downloadReviewIcs, gcalUrl } from "../lib/ics.js";
 import AutoSaved from "../components/AutoSaved.jsx";
 
 const typeLabel = (t) => DECISION_TYPES.find((x) => x.id === t)?.label || t;
+
+// 대조 예정일을 OS 캘린더로 옵트인 등록 — 로컬앱은 푸시가 없어 리마인드를 캘린더로 오프로드.
+function CalButtons({ title, date }) {
+  if (!date) return null;
+  return (
+    <div className="gap-wrap" style={{ marginTop: 10 }}>
+      <span className="tiny muted" style={{ fontWeight: 700, alignSelf: "center" }}>대조 잊지 않기 →</span>
+      <button className="btn btn-sm" onClick={() => downloadReviewIcs({ title, date })}>캘린더 파일(.ics)</button>
+      <a className="btn btn-sm" href={gcalUrl({ title, date })} target="_blank" rel="noopener noreferrer">구글 캘린더에 추가</a>
+    </div>
+  );
+}
 
 // 유형별 추천 프레임(제안 칩) — DECISION_FRAMES 키로 매핑
 const FRAME_SUGGEST = {
@@ -574,7 +587,10 @@ export default function DecisionDetail() {
             {dec.status === "decided" ? (
               <button className="btn btn-block" style={{ marginTop: 14 }} onClick={startExecution} disabled={!(dec.nextActions || []).length}>실행 시작</button>
             ) : (
-              <div className="notice ok" style={{ marginTop: 14 }}>실행 중 · 대조 예정일 <b>{dec.reviewDate || "-"}</b></div>
+              <div style={{ marginTop: 14 }}>
+                <div className="notice ok">실행 중 · 대조 예정일 <b>{dec.reviewDate || "-"}</b></div>
+                <CalButtons title={dec.title} date={dec.reviewDate} />
+              </div>
             )}
           </div>
         </div>
