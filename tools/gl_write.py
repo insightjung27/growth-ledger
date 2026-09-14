@@ -41,16 +41,25 @@ def _now():
 def _req(method, url, body=None, headers=None):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers=headers or {})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        raw = r.read().decode()
-        return r.status, (json.loads(raw) if raw.strip() else None)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            raw = r.read().decode()
+            return r.status, (json.loads(raw) if raw.strip() else None)
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode()
+        try:
+            return e.code, json.loads(raw)
+        except Exception:
+            return e.code, {"_error": raw[:400]}
 
-def _rest_headers(extra=None):
+def _rest_headers(write=False):
     key = _svc()
-    h = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json",
-         "Accept-Profile": SCHEMA, "Content-Profile": SCHEMA}
-    if extra:
-        h.update(extra)
+    h = {"apikey": key, "Authorization": f"Bearer {key}", "Accept": "application/json"}
+    if write:
+        h["Content-Type"] = "application/json"
+        h["Content-Profile"] = SCHEMA
+    else:
+        h["Accept-Profile"] = SCHEMA
     return h
 
 def _owner(args):
@@ -62,9 +71,11 @@ def _owner(args):
 
 def fetch(owner):
     st, rows = _req("GET", f"{REST}/app_state?owner_id=eq.{owner}&select=state,version", headers=_rest_headers())
-    if rows:
-        return rows[0].get("state") or {}, rows[0].get("version") or 1
-    return None, 0
+    if isinstance(rows, list):
+        if rows:
+            return rows[0].get("state") or {}, rows[0].get("version") or 1
+        return None, 0
+    raise SystemExit("REST 오류 http=%s body=%s" % (st, json.dumps(rows, ensure_ascii=False)))
 
 def upsert(owner, state, version):
     body = [{"owner_id": owner, "state": state, "version": version, "updated_at": _now()}]
@@ -105,6 +116,43 @@ def cmd_merge(args):
     status = upsert(owner, state, new_version)
     print(json.dumps({"ok": status in (200, 201, 204), "http": status, "added": added, "version": new_version}, ensure_ascii=False, indent=2))
 
+def _mgmt(path, method="GET", body=None):
+    if not PAT_FILE.exists():
+        sys.exit("~/.supabase-pat 없음(Management API PAT 필요).")
+    pat = PAT_FILE.read_text().strip()
+    return _req(method, f"https://api.supabase.com/v1/projects/{REF}{path}", body=body,
+                headers={"Authorization": f"Bearer {pat}", "Content-Type": "application/json", "User-Agent": "jbs-gl/1.0"})
+
+def cmd_sql(args):
+    st, rows = _mgmt("/database/query", "POST", {"query": args.q})
+    print(json.dumps({"http": st, "rows": rows}, ensure_ascii=False))
+
+def cmd_pgrst_get(args):
+    st, cfg = _mgmt("/postgrest")
+    print(json.dumps({"http": st, "db_schema": (cfg.get("db_schema") if isinstance(cfg, dict) else cfg)}, ensure_ascii=False))
+
+def cmd_expose(args):
+    # ★라이브 authenticator 역할의 pgrst.db_schemas 에 growth append + reload.
+    #   반드시 pg_roles.rolconfig(라이브 authoritative)에서 현재값을 읽는다.
+    #   (current_setting은 세션에 role default가 안 실려 null → 그걸로 덮으면 타앱 노출 소실 위험)
+    st, rows = _mgmt("/database/query", "POST", {"query": "select rolconfig from pg_roles where rolname='authenticator';"})
+    cfg = (rows[0].get("rolconfig") if isinstance(rows, list) and rows else []) or []
+    live = ""
+    for item in cfg:
+        if isinstance(item, str) and item.startswith("pgrst.db_schemas="):
+            live = item.split("=", 1)[1]
+    schemas = [s.strip() for s in live.split(",") if s.strip()]
+    if not schemas:
+        sys.exit("라이브 db_schemas를 읽지 못함 — 안전을 위해 중단(수동 확인).")
+    before = list(schemas)
+    if SCHEMA not in schemas:
+        schemas.append(SCHEMA)
+    newval = ", ".join(schemas)
+    q = ("alter role authenticator set pgrst.db_schemas = '%s';\n"
+         "notify pgrst, 'reload config';\nnotify pgrst, 'reload schema';") % newval
+    st2, _ = _mgmt("/database/query", "POST", {"query": q})
+    print(json.dumps({"before": before, "after": schemas, "applied_http": st2}, ensure_ascii=False))
+
 def cmd_resolve_owner(args):
     if not PAT_FILE.exists():
         sys.exit("~/.supabase-pat 없음(Management API PAT 필요).")
@@ -125,6 +173,9 @@ def main():
     sub.add_parser("get").set_defaults(func=cmd_get)
     m = sub.add_parser("merge"); m.add_argument("--file", required=True); m.set_defaults(func=cmd_merge)
     r = sub.add_parser("resolve-owner"); r.add_argument("--email", required=True); r.set_defaults(func=cmd_resolve_owner)
+    q = sub.add_parser("sql"); q.add_argument("--q", required=True); q.set_defaults(func=cmd_sql)
+    sub.add_parser("pgrst-get").set_defaults(func=cmd_pgrst_get)
+    sub.add_parser("expose").set_defaults(func=cmd_expose)
     args = ap.parse_args()
     args.func(args)
 
