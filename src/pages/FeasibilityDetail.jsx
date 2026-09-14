@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   useStore, updateFeasibilityCase, removeFeasibilityCase, promoteCaseToProject, addDecision,
@@ -32,6 +32,9 @@ export default function FeasibilityDetail() {
   );
 
   const set = (patch) => updateFeasibilityCase(id, patch);
+  const [newLink, setNewLink] = useState({ label: "", url: "" });
+  function addLink() { if (!newLink.url.trim()) return; set({ intakeLinks: [...(c.intakeLinks || []), { label: newLink.label.trim() || newLink.url.trim(), url: newLink.url.trim() }] }); setNewLink({ label: "", url: "" }); }
+  function removeLink(i) { set({ intakeLinks: (c.intakeLinks || []).filter((_, j) => j !== i) }); }
   const setScore = (key, val) => set({ scores: { ...c.scores, [key]: val } });
   const setGate = (patch) => set({ gates: { ...c.gates, ...patch } });
   const krOptions = goal ? goal.keyResults || [] : [];
@@ -59,6 +62,44 @@ export default function FeasibilityDetail() {
 
       <div className="field" style={{ marginTop: 6 }}>
         <input className="input title-input" value={c.title} placeholder="타당성 제목" onChange={(e) => set({ title: e.target.value })} />
+      </div>
+
+      {/* ===== 아이디어 인테이크 & 정비서 분석 ===== */}
+      <div className="section">
+        <div className="section-title">아이디어 인테이크 <span className="tiny muted">(발의 내용·자료 → 정비서 분석)</span></div>
+        <div className="panel panel-pad stack" style={{ gap: 12 }}>
+          <div className="field" style={{ margin: 0 }}>
+            <label>발의 내용 (붙여넣기)</label>
+            <textarea className="textarea" style={{ minHeight: 96 }} value={c.intakeContent} placeholder="발의된 아이디어/요청 내용을 그대로 붙여넣으세요. 정비서에게 '이 케이스 분석해줘'라고 하면 아래 분석과 6기준 채점을 채웁니다." onChange={(e) => set({ intakeContent: e.target.value })} />
+          </div>
+          <div className="field" style={{ margin: 0 }}>
+            <label>참고 링크 · 자료</label>
+            {(c.intakeLinks || []).length > 0 && (
+              <div className="stack" style={{ marginBottom: 8 }}>
+                {c.intakeLinks.map((l, i) => (
+                  <div key={i} className="li" style={{ alignItems: "center", padding: "6px 0" }}>
+                    <a href={l.url} target="_blank" rel="noreferrer" style={{ flex: 1, minWidth: 0, color: "var(--accent)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.label || l.url}</a>
+                    <button className="x" onClick={() => removeLink(i)}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="gap-wrap">
+              <input className="input" style={{ flex: "2 1 200px", minWidth: 0 }} value={newLink.url} placeholder="https:// 링크" onChange={(e) => setNewLink({ ...newLink, url: e.target.value })} />
+              <input className="input" style={{ flex: "1 1 120px", minWidth: 0 }} value={newLink.label} placeholder="이름(선택)" onChange={(e) => setNewLink({ ...newLink, label: e.target.value })} />
+              <button className="btn btn-sm" onClick={addLink} disabled={!newLink.url.trim()}>추가</button>
+            </div>
+          </div>
+          {c.analysis ? (
+            <div className="notice info">
+              <b>🤖 정비서 분석</b>{c.analysis.at ? <span className="tiny muted"> · {String(c.analysis.at).slice(0, 10)}</span> : null}
+              {c.analysis.summary ? <div style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>{c.analysis.summary}</div> : null}
+              {c.analysis.recommendation ? <div style={{ marginTop: 6 }}><b>권고:</b> {c.analysis.recommendation}</div> : null}
+            </div>
+          ) : (
+            <div className="hint">내용·링크를 넣고 정비서에게 “이 타당성 케이스 분석해줘”라고 하면, 정비서가 6기준 채점·근거·권고를 채워 이 자리에 남깁니다.</div>
+          )}
+        </div>
       </div>
 
       {/* ===== 판정 카드 — 하드게이트 서사 우선, 점수는 보조 ===== */}

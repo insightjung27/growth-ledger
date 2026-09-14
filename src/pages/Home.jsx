@@ -64,7 +64,7 @@ export default function Home() {
   }
   function doRestore() { if (restorePrevious()) { setRestorable(false); alert("직전 상태로 되돌렸습니다."); } }
   function dismissRestore() { clearRestorePoint(); setRestorable(false); }
-  const { deals, moneyTests, decisions, teamMembers, handoffs, oneOnOnes, quarterlyGoals, weeklyReviews, meta, companyGoals, feasibilityCases, projects, tasks, stakeholders, predictions } = state;
+  const { deals, moneyTests, decisions, teamMembers, handoffs, oneOnOnes, quarterlyGoals, weeklyReviews, meta, companyGoals, feasibilityCases, projects, tasks, tickets, stakeholders, predictions } = state;
 
   const now = new Date();
   // 하루 단위 재계산 트리거 — now(new Date())는 매 렌더 새 참조라 deps로 못 씀. ISO 날짜 문자열로 고정.
@@ -206,7 +206,7 @@ export default function Home() {
   const peopleDone = (handoffs || []).filter(isCompletedHandoff).length;
 
   // ===== 배너/상태 =====
-  const totalRecords = (deals || []).length + (moneyTests || []).length + (decisions || []).length + (teamMembers || []).length + (handoffs || []).length + (oneOnOnes || []).length + (weeklyReviews || []).length + (companyGoals || []).length + (feasibilityCases || []).length + (projects || []).length + (tasks || []).length + (stakeholders || []).length + (predictions || []).length;
+  const totalRecords = (deals || []).length + (moneyTests || []).length + (decisions || []).length + (teamMembers || []).length + (handoffs || []).length + (oneOnOnes || []).length + (weeklyReviews || []).length + (companyGoals || []).length + (feasibilityCases || []).length + (projects || []).length + (tasks || []).length + (tickets || []).length + (stakeholders || []).length + (predictions || []).length;
   const isEmpty = totalRecords === 0;
   const daysSinceBackup = meta && meta.lastBackupAt ? daysBetween(meta.lastBackupAt, now) : null;
   const showBackup = totalRecords > 0 && (daysSinceBackup == null || daysSinceBackup >= 7);
