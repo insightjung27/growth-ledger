@@ -10,7 +10,7 @@ const FILTERS = [{ id: "active", l: "진행" }, { id: "all", l: "전체" }, { id
 export default function Projects() {
   const projects = useStore((s) => s.projects);
   const goals = useStore((s) => s.companyGoals);
-  const tasks = useStore((s) => s.tasks);
+  const tickets = useStore((s) => s.tickets);
   const handoffs = useStore((s) => s.handoffs);
   const state = useStore();
   const nav = useNavigate();
@@ -79,7 +79,7 @@ export default function Projects() {
         <div className="stack">
           {view.map((p) => {
             const g = p.goalId ? goalById[p.goalId] : null;
-            const pr = projectProgress(p, tasks, handoffs);
+            const pr = projectProgress(p, tickets, handoffs);
             return (
               <button key={p.id} className="li-card" onClick={() => nav("/projects/" + p.id)}>
                 <div style={{ minWidth: 0, flex: 1 }}>

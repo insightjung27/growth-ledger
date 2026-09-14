@@ -3,3 +3,8 @@ dist
 .DS_Store
 .vercel
 *.local
+
+# 로컬 환경/비밀
+.env
+.env.*.local
+.env.local

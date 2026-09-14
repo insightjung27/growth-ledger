@@ -63,9 +63,9 @@ export function goalProgress(goal) {
   return { pct: Math.round(vals.reduce((a, b) => a + b, 0) / vals.length), krCount: krs.length };
 }
 
-/* ===== 프로젝트 진척(파생 — task+handoff+milestone done 비율) ===== */
-export function projectProgress(project, tasks, handoffs) {
-  const pts = (tasks || []).filter((t) => t.projectId === project.id);
+/* ===== 프로젝트 진척(파생 — ticket+handoff+milestone done 비율) ===== */
+export function projectProgress(project, tickets, handoffs) {
+  const pts = (tickets || []).filter((t) => t.projectId === project.id);
   const phs = (handoffs || []).filter((h) => (project.handoffIds || []).includes(h.id));
   const ms = project.milestones || [];
   const items = [...pts.map((t) => t.status === "done"), ...phs.map((h) => h.status === "done"), ...ms.map((m) => !!m.done)];

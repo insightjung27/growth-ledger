@@ -100,14 +100,15 @@ function fresh() {
     feasibilityCases: [],
     projects: [],
     tasks: [],
+    tickets: [],
     stakeholders: [],
     predictions: [],
     proposals: [],
     competencyEvidence: [],
-    meta: { createdAt: now, lastOpenedAt: now, lastBackupAt: null, theme: "auto" },
+    meta: { createdAt: now, lastOpenedAt: now, lastBackupAt: null, theme: "auto", tasksMigrated: false },
   };
 }
-const ARRAYS = ["deals", "moneyTests", "weeklyReviews", "decisions", "teamMembers", "handoffs", "oneOnOnes", "quarterlyGoals", "companyGoals", "feasibilityCases", "projects", "tasks", "stakeholders", "predictions", "proposals", "competencyEvidence"];
+const ARRAYS = ["deals", "moneyTests", "weeklyReviews", "decisions", "teamMembers", "handoffs", "oneOnOnes", "quarterlyGoals", "companyGoals", "feasibilityCases", "projects", "tasks", "tickets", "stakeholders", "predictions", "proposals", "competencyEvidence"];
 
 function sanitize(obj) {
   const base = fresh();
@@ -140,8 +141,9 @@ function sanitize(obj) {
     keyResults: Array.isArray(x && x.keyResults) ? x.keyResults.map((k) => ({ id: uid(), name: "", unit: "", startValue: 0, targetValue: 0, currentValue: 0, confidence: "amber", ...k })) : [],
   }));
   s.feasibilityCases = s.feasibilityCases.map((x) => ({
-    title: "", problem: "", expectedOutcome: "", linkedGoalId: null, linkedKrId: null, linkedDealId: null, moneyTestId: null,
+    title: "", problem: "", expectedOutcome: "", intakeContent: "", analysis: null, linkedGoalId: null, linkedKrId: null, linkedDealId: null, moneyTestId: null,
     confidence: 0.8, timeCritical: false, moscow: "should", contribution: "med", status: "draft", decisionId: null, projectId: null, ...x,
+    intakeLinks: Array.isArray(x && x.intakeLinks) ? x.intakeLinks : [],
     scores: { goalAlign: null, value: null, strategicFit: null, feasibility: null, risk: null, cost: null, ...(x && x.scores) },
     gates: { compliance: true, reversibility: "reversible", budgetFit: true, ...(x && x.gates) },
   }));
@@ -153,6 +155,23 @@ function sanitize(obj) {
     milestones: Array.isArray(x && x.milestones) ? x.milestones.map((m) => ({ id: uid(), name: "", targetDate: "", done: false, ...m })) : [],
   }));
   s.tasks = s.tasks.map((x) => ({ title: "", projectId: null, status: "todo", priority: "med", due: "", inbox: false, note: "", ...x }));
+  s.tickets = (Array.isArray(s.tickets) ? s.tickets : []).map((x) => ({
+    title: "", description: "", projectId: null, assigneeKind: "self", assigneeId: null, assigneeName: "", status: "todo", priority: "med", due: "", isDelegation: false, ...x,
+    delegation: { level: 2, outcome: "", metric: "", boundary: "", authority: "", checkpoints: [], result: { met: "", autonomy: "", rework: false, note: "" }, ...(x && x.delegation) },
+  }));
+  // 레거시 tasks → 통합 tickets 1회 이관(assignee=self)
+  if (!s.meta.tasksMigrated && Array.isArray(s.tasks) && s.tasks.length) {
+    const conv = s.tasks.map((t) => ({
+      id: uid(), title: t.title || "", description: t.note || "", projectId: t.projectId || null,
+      assigneeKind: "self", assigneeId: null, assigneeName: "", status: t.status === "done" ? "done" : t.status === "doing" ? "doing" : "todo",
+      priority: t.priority || "med", due: t.due || "", isDelegation: false,
+      delegation: { level: 2, outcome: "", metric: "", boundary: "", authority: "", checkpoints: [], result: { met: "", autonomy: "", rework: false, note: "" } },
+      createdAt: t.createdAt || new Date().toISOString(), updatedAt: t.updatedAt || new Date().toISOString(),
+    }));
+    s.tickets = [...conv, ...s.tickets];
+    s.tasks = [];
+    s.meta.tasksMigrated = true;
+  }
   s.stakeholders = s.stakeholders.map((x) => ({ name: "", role: "other", org: "", contact: "", power: 3, interest: 3, stance: "unclear", notes: "", ...x, projectIds: Array.isArray(x && x.projectIds) ? x.projectIds : [] }));
   s.predictions = s.predictions.map((x) => ({ question: "", probability: 0.6, resolveBy: "", resolution: null, resolvedAt: null, linkedItemId: null, ...x, tags: Array.isArray(x && x.tags) ? x.tags : [] }));
   s.proposals = s.proposals.map((x) => ({ title: "", caseId: null, linkedGoalId: null, recommendation: "", theAsk: "", decisionBy: "", status: "draft", ...x, stakeholderIds: Array.isArray(x && x.stakeholderIds) ? x.stakeholderIds : [], sections: Array.isArray(x && x.sections) ? x.sections : [], proofPoints: Array.isArray(x && x.proofPoints) ? x.proofPoints : [], risks: Array.isArray(x && x.risks) ? x.risks : [] }));
@@ -174,7 +193,13 @@ function load() {
   try { const raw = localStorage.getItem(KEY); if (!raw) return fresh(); return sanitize(JSON.parse(raw)); } catch (e) { return fresh(); }
 }
 function persist() { try { localStorage.setItem(KEY, JSON.stringify(state)); setPersistError(false); return true; } catch (e) { setPersistError(true); return false; } }
-function emit() { persist(); listeners.forEach((l) => l()); }
+// 클라우드 동기화 훅(cloud.js가 등록). 로컬 변경 시 호출 → 디바운스 업로드.
+let onLocalChange = null;
+export function registerSync(cb) { onLocalChange = cb; }
+function emit() { persist(); listeners.forEach((l) => l()); if (onLocalChange) { try { onLocalChange(); } catch (e) {} } }
+// 클라우드에서 받은 상태를 적용(로컬 미러 + 리렌더, 단 클라우드로 되쏘지 않음 = 에코 방지)
+export function applyCloudState(next) { state = sanitize(next && typeof next === "object" ? next : {}); persist(); listeners.forEach((l) => l()); }
+export function recordCount(s) { return ARRAYS.reduce((n, k) => n + (s && Array.isArray(s[k]) ? s[k].length : 0), 0); }
 function subscribe(cb) { listeners.add(cb); return () => listeners.delete(cb); }
 export function useStore(selector = (s) => s) { return useSyncExternalStore(subscribe, () => selector(state), () => selector(state)); }
 export function setState(updater) { state = typeof updater === "function" ? updater(state) : { ...state, ...updater }; emit(); }
@@ -296,7 +321,7 @@ export function removeKeyResult(goalId, krId) {
 }
 
 /* ----- [M2] 타당성 케이스 (6기준 가중 + 하드게이트, 점수는 파생·미저장) ----- */
-const _fc = coll("feasibilityCases", () => ({ title: "", problem: "", expectedOutcome: "", linkedGoalId: null, linkedKrId: null, linkedDealId: null, moneyTestId: null, scores: { goalAlign: null, value: null, strategicFit: null, feasibility: null, risk: null, cost: null }, confidence: 0.8, timeCritical: false, moscow: "should", contribution: "med", gates: { compliance: true, reversibility: "reversible", budgetFit: true }, status: "draft", decisionId: null, projectId: null }));
+const _fc = coll("feasibilityCases", () => ({ title: "", problem: "", expectedOutcome: "", intakeContent: "", intakeLinks: [], analysis: null, linkedGoalId: null, linkedKrId: null, linkedDealId: null, moneyTestId: null, scores: { goalAlign: null, value: null, strategicFit: null, feasibility: null, risk: null, cost: null }, confidence: 0.8, timeCritical: false, moscow: "should", contribution: "med", gates: { compliance: true, reversibility: "reversible", budgetFit: true }, status: "draft", decisionId: null, projectId: null }));
 export const addFeasibilityCase = _fc.add, updateFeasibilityCase = _fc.update, getFeasibilityCase = _fc.get;
 export function removeFeasibilityCase(id) {
   setState((s) => ({ ...s, feasibilityCases: s.feasibilityCases.filter((x) => x.id !== id), projects: s.projects.map((p) => (p.caseId === id ? { ...p, caseId: null } : p)), proposals: s.proposals.map((p) => (p.caseId === id ? { ...p, caseId: null } : p)) }));
@@ -319,6 +344,7 @@ export function removeProject(id) {
     ...s,
     projects: s.projects.filter((x) => x.id !== id),
     tasks: s.tasks.map((t) => (t.projectId === id ? { ...t, projectId: null, inbox: true } : t)),
+    tickets: s.tickets.map((t) => (t.projectId === id ? { ...t, projectId: null } : t)),
     stakeholders: s.stakeholders.map((k) => ({ ...k, projectIds: (k.projectIds || []).filter((pid) => pid !== id) })),
     feasibilityCases: s.feasibilityCases.map((c) => (c.projectId === id ? { ...c, projectId: null } : c)),
   }));
@@ -339,6 +365,23 @@ export function removeMilestone(projectId, mid) { setState((s) => ({ ...s, proje
 /* ----- [M5] 1인 실행 태스크 (handoffs와 분리·북극성 롤업 제외) ----- */
 const _tk = coll("tasks", () => ({ title: "", projectId: null, status: "todo", priority: "med", due: "", inbox: false, note: "" }));
 export const addTask = _tk.add, updateTask = _tk.update, removeTask = _tk.remove, getTask = _tk.get;
+
+/* ----- 통합 티켓 (담당자 지정 + 위임심화 옵션) — tasks·handoffs 통합 작업단위 ----- */
+export const TICKET_STATUSES = [
+  { id: "todo", l: "할 일", light: "gray" },
+  { id: "doing", l: "진행", light: "amber" },
+  { id: "review", l: "검토", light: "amber" },
+  { id: "done", l: "완료", light: "green" },
+  { id: "blocked", l: "막힘", light: "red" },
+];
+export const ASSIGNEE_KINDS = [
+  { id: "self", l: "나(직접)" },
+  { id: "member", l: "팀원" },
+  { id: "stakeholder", l: "이해관계자" },
+  { id: "external", l: "외부" },
+];
+const _tc = coll("tickets", () => ({ title: "", description: "", projectId: null, assigneeKind: "self", assigneeId: null, assigneeName: "", status: "todo", priority: "med", due: "", isDelegation: false, delegation: { level: 2, outcome: "", metric: "", boundary: "", authority: "", checkpoints: [], result: { met: "", autonomy: "", rework: false, note: "" } } }));
+export const addTicket = _tc.add, updateTicket = _tc.update, removeTicket = _tc.remove, getTicket = _tc.get;
 
 /* ----- [M9] 이해관계자 (발의자·임원·고객사 담당 — teamMembers와 분리) ----- */
 export const STAKEHOLDER_ROLES = [

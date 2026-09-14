@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { exportJSON, importJSON, markBackup, counts, usePersistError, addFeasibilityCase, addProject, addDeal, addTask } from "../lib/store.js";
+import { exportJSON, importJSON, markBackup, counts, usePersistError, addFeasibilityCase, addProject, addDeal, addTicket } from "../lib/store.js";
 import { isoDate } from "../lib/format.js";
 
 // 모바일 하단 탭 = 새 백본 흐름: 홈·목표·타당성·프로젝트 + 더보기
@@ -11,7 +11,8 @@ const PRIMARY = [
   { to: "/projects", label: "프로젝트", icon: "project" },
 ];
 const MORE = [
-  { to: "/tasks", label: "내 할일" },
+  { to: "/settings", label: "설정·동기화" },
+  { to: "/tickets", label: "티켓" },
   { to: "/stakeholders", label: "이해관계자" },
   { to: "/predictions", label: "예측" },
   { to: "/deals", label: "딜" },
@@ -31,7 +32,7 @@ const ALL = [
   { to: "/goals", label: "목표" },
   { to: "/feasibility", label: "타당성" },
   { to: "/projects", label: "프로젝트" },
-  { to: "/tasks", label: "내 할일" },
+  { to: "/tickets", label: "티켓" },
   { to: "/stakeholders", label: "이해관계자" },
   { to: "/deals", label: "딜" },
   { to: "/decisions", label: "판단" },
@@ -43,6 +44,7 @@ const ALL = [
   { to: "/predictions", label: "예측" },
   { to: "/growth", label: "성장" },
   { to: "/pmo", label: "PMO" },
+  { to: "/settings", label: "설정" },
   { to: "/guide", label: "가이드" },
 ];
 
@@ -72,7 +74,7 @@ function download(text, name) {
 const CAPTURES = [
   { key: "feas", label: "타당성", emoji: "⚖️" },
   { key: "project", label: "프로젝트", emoji: "📁" },
-  { key: "task", label: "할 일", emoji: "✅" },
+  { key: "ticket", label: "티켓", emoji: "🎫" },
   { key: "deal", label: "딜", emoji: "🤝" },
   { key: "prediction", label: "예측", emoji: "🔮" },
   { key: "stakeholder", label: "이해관계자", emoji: "👤" },
@@ -118,7 +120,7 @@ export default function Layout() {
     if (key === "feas") { const id = addFeasibilityCase({}); nav("/feasibility/" + id); }
     else if (key === "project") { const id = addProject({}); nav("/projects/" + id); }
     else if (key === "deal") { const id = addDeal({}); nav("/deals/" + id); }
-    else if (key === "task") { addTask({ inbox: true }); nav("/tasks"); }
+    else if (key === "ticket") { addTicket({}); nav("/tickets"); }
     else if (key === "prediction") { nav("/predictions"); }
     else if (key === "stakeholder") { nav("/stakeholders"); }
   }

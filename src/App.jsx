@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
+import { initAuth } from "./lib/cloud.js";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import PinGate from "./components/PinGate.jsx";
 import Layout from "./components/Layout.jsx";
@@ -24,9 +26,11 @@ import Projects from "./pages/Projects.jsx";
 import ProjectDetail from "./pages/ProjectDetail.jsx";
 import Stakeholders from "./pages/Stakeholders.jsx";
 import Predictions from "./pages/Predictions.jsx";
-import Tasks from "./pages/Tasks.jsx";
+import Tickets from "./pages/Tickets.jsx";
+import Settings from "./pages/Settings.jsx";
 
 export default function App() {
+  useEffect(() => { initAuth(); }, []);
   return (
     <ErrorBoundary>
       <PinGate>
@@ -40,7 +44,8 @@ export default function App() {
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="stakeholders" element={<Stakeholders />} />
             <Route path="predictions" element={<Predictions />} />
-            <Route path="tasks" element={<Tasks />} />
+            <Route path="tickets" element={<Tickets />} />
+            <Route path="tasks" element={<Tickets />} />
             <Route path="decisions" element={<Decisions />} />
             <Route path="decisions/:id" element={<DecisionDetail />} />
             <Route path="deals" element={<Deals />} />
@@ -55,6 +60,7 @@ export default function App() {
             <Route path="weekly" element={<Weekly />} />
             <Route path="growth" element={<Growth />} />
             <Route path="pmo" element={<Pmo />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="guide" element={<Guide />} />
             <Route path="*" element={<Home />} />
           </Route>

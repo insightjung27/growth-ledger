@@ -463,3 +463,8 @@ table.grid td { max-width: 260px; overflow: hidden; text-overflow: ellipsis; whi
 .cap-btn { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 16px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); font-weight: 650; font-size: 13px; color: var(--ink); cursor: pointer; }
 .cap-btn:hover { background: var(--paper-3); }
 .cap-emoji { font-size: 22px; line-height: 1; }
+
+/* 티켓 */
+.status-chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: var(--paper); border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 650; color: var(--ink-2); cursor: pointer; white-space: nowrap; flex: 0 0 auto; min-height: 32px; }
+.status-chip:hover { background: var(--paper-3); }
+.ticket-main { flex: 1; min-width: 0; text-align: left; background: transparent; border: none; font: inherit; color: inherit; cursor: pointer; padding: 0 4px; }
