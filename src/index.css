@@ -468,3 +468,11 @@ table.grid td { max-width: 260px; overflow: hidden; text-overflow: ellipsis; whi
 .status-chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: var(--paper); border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 650; color: var(--ink-2); cursor: pointer; white-space: nowrap; flex: 0 0 auto; min-height: 32px; }
 .status-chip:hover { background: var(--paper-3); }
 .ticket-main { flex: 1; min-width: 0; text-align: left; background: transparent; border: none; font: inherit; color: inherit; cursor: pointer; padding: 0 4px; }
+
+/* 원가 라인 */
+.cost-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.cost-row .select { flex: 1 1 130px; min-width: 0; height: 38px; }
+.cost-row > .input { flex: 2 1 140px; min-width: 0; height: 38px; }
+.cost-amt { flex: 1 1 96px; }
+.cost-amt .input { height: 38px; }
+@media (max-width: 560px) { .cost-row { border-bottom: 1px solid var(--line-2); padding-bottom: 10px; } .cost-amt { flex: 1 1 44%; } }

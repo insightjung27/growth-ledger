@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore, addProject, PROJECT_STATUSES } from "../lib/store.js";
 import { projectProgress, findOrphans } from "../lib/feasibility.js";
+import { portfolioFinance } from "../lib/finance.js";
+import { won, pct } from "../lib/format.js";
 import Modal from "../components/Modal.jsx";
 
 const STATUS_LIGHT = { proposed: "gray", verified: "gray", approved: "amber", executing: "green", closed: "gray", held: "amber", killed: "red" };
@@ -21,6 +23,7 @@ export default function Projects() {
   const goalById = useMemo(() => Object.fromEntries(goals.map((g) => [g.id, g])), [goals]);
   const statusById = Object.fromEntries(PROJECT_STATUSES.map((s) => [s.id, s]));
   const orphans = useMemo(() => findOrphans(state).filter((o) => o.type === "project"), [state]);
+  const pf = useMemo(() => portfolioFinance(projects), [projects]);
 
   const view = useMemo(() => {
     const rank = (p) => PROJECT_STATUSES.findIndex((s) => s.id === p.status);
@@ -61,6 +64,14 @@ export default function Projects() {
           <div className="stat"><div className="k">전체 프로젝트</div><div className="v">{projects.length}<small>건</small></div><div className="d">라이프사이클 관리</div></div>
           <div className="stat"><div className="k">실행 중</div><div className="v" style={{ color: activeCount ? "var(--green)" : "inherit" }}>{activeCount}<small>건</small></div><div className="d">executing 상태</div></div>
           <div className="stat"><div className="k">목표 미정렬</div><div className="v" style={{ color: orphans.length ? "var(--amber)" : "inherit" }}>{orphans.length}<small>건</small></div><div className="d">정렬 재검토 필요</div></div>
+        </div>
+      )}
+
+      {(pf.budget > 0 || pf.revenue > 0) && (
+        <div className="stat-row section">
+          <div className="stat"><div className="k">총예산 / 소진</div><div className="v" style={{ fontSize: 18 }}>{won(pf.spent)}<small> / {won(pf.budget)}</small></div><div className="d">소진율 {pf.burnPct != null ? pct(pf.burnPct) : "—"} · 잔여 {won(pf.remaining)}</div></div>
+          <div className="stat"><div className="k">포트폴리오 이익</div><div className="v" style={{ color: pf.profit < 0 ? "var(--red)" : "var(--green)" }}>{won(pf.profit)}</div><div className="d">수주형 프로젝트 실적 합</div></div>
+          <div className="stat"><div className="k">재무 위험</div><div className="v" style={{ color: pf.atRisk ? "var(--red)" : "inherit" }}>{pf.atRisk}<small>건</small></div><div className="d">예산초과·손익 위험</div></div>
         </div>
       )}
 

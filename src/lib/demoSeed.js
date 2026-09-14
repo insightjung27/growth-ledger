@@ -24,7 +24,14 @@ export const DEMO = {
       { id: "ms1", name: "요구·범위 확정", targetDate: "2026-08-20", done: true },
       { id: "ms2", name: "제안·임원 승인", targetDate: "2026-09-05", done: false },
       { id: "ms3", name: "개발·오픈", targetDate: "2026-11-30", done: false },
-    ], selfExec: false, contribution: "high", startedAt: "2026-08-14T00:00:00.000Z", closedAt: null, createdAt: "2026-08-14T00:00:00.000Z", updatedAt: "2026-08-27T00:00:00.000Z" },
+    ], selfExec: false, contribution: "high", startedAt: "2026-08-14T00:00:00.000Z", closedAt: null,
+      finance: { mode: "earn", budget: 420000000, revenue: 400000000, currency: "KRW", costLines: [
+        { id: "cl1", category: "labor", label: "개발·기획 공수", planned: 250000000, actual: 120000000 },
+        { id: "cl2", category: "outsourcing", label: "결제연동 외주", planned: 60000000, actual: 30000000 },
+        { id: "cl3", category: "infra", label: "인프라·라이선스", planned: 20000000, actual: 10000000 },
+        { id: "cl4", category: "contingency", label: "리스크 예비비", planned: 20000000, actual: 0 },
+      ] },
+      createdAt: "2026-08-14T00:00:00.000Z", updatedAt: "2026-08-27T00:00:00.000Z" },
   ],
   tasks: [
     { id: "tk1", title: "완료율 원인 3가지로 압축", projectId: "pj1", status: "doing", priority: "high", due: "2026-09-02", inbox: false, note: "", createdAt: "2026-08-27T00:00:00.000Z", updatedAt: "2026-08-27T00:00:00.000Z" },

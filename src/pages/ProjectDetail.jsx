@@ -4,11 +4,15 @@ import {
   useStore, updateProject, removeProject, PROJECT_STATUSES,
   addMilestone, updateMilestone, removeMilestone,
   addTicket, updateTicket, removeTicket, updateStakeholder,
+  updateFinance, addCostLine, updateCostLine, removeCostLine,
 } from "../lib/store.js";
 import { projectProgress } from "../lib/feasibility.js";
+import { computeFinance, FINANCE_MODES, COST_CATEGORIES, FINANCE_HOWTO } from "../lib/finance.js";
+import { won, pct, months, manToWon, wonToMan } from "../lib/format.js";
 
 const CONTRIB = [{ id: "high", l: "높음" }, { id: "med", l: "보통" }, { id: "low", l: "낮음" }];
 const PRIO_DOT = { high: "red", med: "amber", low: "gray" };
+const manVal = (w) => { const m = wonToMan(w); return m === 0 ? "" : m; };
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -35,6 +39,8 @@ export default function ProjectDetail() {
   const krOptions = goal ? goal.keyResults || [] : [];
   const linkedShIds = p.stakeholderIds || [];
   const unlinkedSh = stakeholders.filter((s) => !linkedShIds.includes(s.id));
+  const f = p.finance || {};
+  const fr = computeFinance(f);
   function assigneeName(t) {
     if (t.assigneeKind === "self") return "나";
     if (t.assigneeKind === "member") return members.find((m) => m.id === t.assigneeId)?.name || t.assigneeName || "팀원";
@@ -99,6 +105,68 @@ export default function ProjectDetail() {
             </div>
           </div>
           {kase && <div className="tiny muted">타당성 출처: <Link to={"/feasibility/" + kase.id}>{kase.title || "케이스"}</Link></div>}
+        </div>
+      </div>
+
+      {/* 수익성 · 원가 · 예산 */}
+      <div className="section">
+        <div className="between" style={{ marginBottom: 10 }}>
+          <div className="section-title" style={{ margin: 0 }}>💰 수익성 · 원가 · 예산</div>
+          <span className={"light " + fr.light} style={{ padding: "4px 10px", fontSize: 13 }}><span className="beam" />{f.mode === "save" ? "회수 " + (fr.payback != null ? months(fr.payback) : "—") : "이익률 " + (fr.margin != null ? pct(fr.margin) : "—")}</span>
+        </div>
+        <div className="panel panel-pad stack" style={{ gap: 14 }}>
+          <div className="row2">
+            <div className="field" style={{ margin: 0 }}><label>유형</label>
+              <div className="seg">{FINANCE_MODES.map((m) => <button key={m.id} className={f.mode === m.id ? "on" : ""} onClick={() => updateFinance(id, { mode: m.id })} title={m.desc}>{m.label}</button>)}</div>
+            </div>
+            <div className="field" style={{ margin: 0 }}><label>{f.mode === "save" ? "연 절감가치" : "매출·수주액"}</label>
+              <div className="input-group"><input className="input" type="number" inputMode="decimal" placeholder="0" value={manVal(f.revenue)} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => updateFinance(id, { revenue: manToWon(e.target.value) })} /><span className="suffix">만원</span></div>
+            </div>
+          </div>
+          <div className="field" style={{ margin: 0, maxWidth: 300 }}><label>승인 예산</label>
+            <div className="input-group"><input className="input" type="number" inputMode="decimal" placeholder="0" value={manVal(f.budget)} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => updateFinance(id, { budget: manToWon(e.target.value) })} /><span className="suffix">만원</span></div>
+          </div>
+
+          <div>
+            <div className="section-title" style={{ marginBottom: 8 }}>원가 (계획 vs 실적)</div>
+            <div className="stack">
+              {(f.costLines || []).map((l) => (
+                <div key={l.id} className="cost-row">
+                  <select className="select" value={l.category} onChange={(e) => updateCostLine(id, l.id, { category: e.target.value })}>{COST_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+                  <input className="input" placeholder="설명(선택)" value={l.label} onChange={(e) => updateCostLine(id, l.id, { label: e.target.value })} />
+                  <div className="input-group cost-amt"><input className="input" type="number" inputMode="decimal" placeholder="계획" value={manVal(l.planned)} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => updateCostLine(id, l.id, { planned: manToWon(e.target.value) })} /><span className="suffix">만</span></div>
+                  <div className="input-group cost-amt"><input className="input" type="number" inputMode="decimal" placeholder="실적" value={manVal(l.actual)} onWheel={(e) => e.currentTarget.blur()} onChange={(e) => updateCostLine(id, l.id, { actual: manToWon(e.target.value) })} /><span className="suffix">만</span></div>
+                  <button className="x" onClick={() => removeCostLine(id, l.id)}>×</button>
+                </div>
+              ))}
+              {(f.costLines || []).length === 0 && <div className="muted small">원가 항목이 없습니다. 인건비·외주·인프라 등을 추가하세요.</div>}
+            </div>
+            <div className="gap-wrap" style={{ marginTop: 8 }}>
+              <button className="btn btn-sm" onClick={() => addCostLine(id, {})}>+ 원가 항목</button>
+              <span className="hint">공수(인력×기간×단가)는 <Link to="/money-test">머니테스트</Link>에서 상세 산정 후 옮겨도 됩니다.</span>
+            </div>
+          </div>
+
+          <div className="kv-grid">
+            <div className="kv"><div className="k">{f.mode === "earn" ? "이익(실적)" : "연 순가치"}</div><div className="v" style={{ color: (fr.profitActual || 0) < 0 ? "var(--red)" : "var(--green)" }}>{won(fr.profitActual)}</div></div>
+            <div className="kv"><div className="k">{f.mode === "earn" ? "이익률" : "ROI(1년)"}</div><div className="v">{f.mode === "earn" ? (fr.margin != null ? pct(fr.margin) : "—") : (fr.roi != null ? pct(fr.roi) : "—")}</div></div>
+            <div className="kv"><div className="k">원가 계획→실적</div><div className="v" style={{ fontSize: 15 }}>{won(fr.plannedCost)} → {won(fr.actualCost)}</div></div>
+            <div className="kv"><div className="k">예산 잔여</div><div className="v" style={{ color: fr.overBudget ? "var(--red)" : "inherit" }}>{fr.budget > 0 ? won(fr.remaining) : "—"}</div></div>
+          </div>
+          {fr.budget > 0 && (
+            <div>
+              <div className="between" style={{ marginBottom: 4 }}><span className="tiny muted">예산 소진율</span><b className="mono" style={{ color: fr.overBudget ? "var(--red)" : "inherit" }}>{fr.burnPct != null ? pct(fr.burnPct) : "—"}{fr.overBudget ? " · 초과" : ""}</b></div>
+              <div className="pbar"><span style={{ width: Math.min(100, (fr.burnPct || 0) * 100) + "%", background: fr.overBudget ? "var(--red)" : undefined }} /></div>
+            </div>
+          )}
+          {fr.note && <div className={"notice " + (fr.light === "red" ? "warn" : fr.light === "green" ? "ok" : "info")}>{fr.note}</div>}
+
+          <details className="panel" style={{ background: "var(--paper-2)" }}>
+            <summary style={{ cursor: "pointer", padding: "12px 14px", fontWeight: 700 }}>❓ 수익성·원가·예산, 어떻게 하나요?</summary>
+            <div style={{ padding: "0 14px 14px" }}>
+              {FINANCE_HOWTO.map((s, i) => (<div key={i} style={{ marginTop: 10 }}><b>{s.t}</b><ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>{s.b.map((x, j) => <li key={j} className="small" style={{ marginBottom: 2 }}>{x}</li>)}</ul></div>))}
+            </div>
+          </details>
         </div>
       </div>
 

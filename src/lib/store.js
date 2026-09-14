@@ -153,6 +153,7 @@ function sanitize(obj) {
     handoffIds: Array.isArray(x && x.handoffIds) ? x.handoffIds : [],
     taskIds: Array.isArray(x && x.taskIds) ? x.taskIds : [],
     milestones: Array.isArray(x && x.milestones) ? x.milestones.map((m) => ({ id: uid(), name: "", targetDate: "", done: false, ...m })) : [],
+    finance: { mode: "earn", budget: 0, revenue: 0, currency: "KRW", ...(x && x.finance), costLines: Array.isArray(x && x.finance && x.finance.costLines) ? x.finance.costLines.map((l) => ({ id: uid(), category: "labor", label: "", planned: 0, actual: 0, ...l })) : [] },
   }));
   s.tasks = s.tasks.map((x) => ({ title: "", projectId: null, status: "todo", priority: "med", due: "", inbox: false, note: "", ...x }));
   s.tickets = (Array.isArray(s.tickets) ? s.tickets : []).map((x) => ({
@@ -337,7 +338,7 @@ export const PROJECT_STATUSES = [
   { id: "held", label: "보류", prob: 0 },
   { id: "killed", label: "중단", prob: 0 },
 ];
-const _pj = coll("projects", () => ({ title: "", goalId: null, krId: null, caseId: null, proposalId: null, dealId: null, status: "proposed", stakeholderIds: [], handoffIds: [], taskIds: [], milestones: [], selfExec: false, contribution: "med", startedAt: null, closedAt: null }));
+const _pj = coll("projects", () => ({ title: "", goalId: null, krId: null, caseId: null, proposalId: null, dealId: null, status: "proposed", stakeholderIds: [], handoffIds: [], taskIds: [], milestones: [], selfExec: false, contribution: "med", startedAt: null, closedAt: null, finance: { mode: "earn", budget: 0, revenue: 0, currency: "KRW", costLines: [] } }));
 export const addProject = _pj.add, updateProject = _pj.update, getProject = _pj.get;
 export function removeProject(id) {
   setState((s) => ({
@@ -361,6 +362,12 @@ export function promoteCaseToProject(caseId) {
 export function addMilestone(projectId, m) { setState((s) => ({ ...s, projects: s.projects.map((p) => (p.id === projectId ? { ...p, milestones: [...(p.milestones || []), { id: uid(), name: "", targetDate: "", done: false, ...m }], updatedAt: new Date().toISOString() } : p)) })); }
 export function updateMilestone(projectId, mid, patch) { setState((s) => ({ ...s, projects: s.projects.map((p) => (p.id === projectId ? { ...p, milestones: (p.milestones || []).map((m) => (m.id === mid ? { ...m, ...patch } : m)), updatedAt: new Date().toISOString() } : p)) })); }
 export function removeMilestone(projectId, mid) { setState((s) => ({ ...s, projects: s.projects.map((p) => (p.id === projectId ? { ...p, milestones: (p.milestones || []).filter((m) => m.id !== mid), updatedAt: new Date().toISOString() } : p)) })); }
+
+/* ----- 프로젝트 재무(수익성·원가·예산) ----- */
+export function updateFinance(projectId, patch) { setState((s) => ({ ...s, projects: s.projects.map((p) => (p.id === projectId ? { ...p, finance: { ...(p.finance || {}), ...patch }, updatedAt: new Date().toISOString() } : p)) })); }
+export function addCostLine(projectId, line) { setState((s) => ({ ...s, projects: s.projects.map((p) => { if (p.id !== projectId) return p; const f = p.finance || { costLines: [] }; return { ...p, finance: { ...f, costLines: [...(f.costLines || []), { id: uid(), category: "labor", label: "", planned: 0, actual: 0, ...line }] }, updatedAt: new Date().toISOString() }; }) })); }
+export function updateCostLine(projectId, lineId, patch) { setState((s) => ({ ...s, projects: s.projects.map((p) => { if (p.id !== projectId) return p; const f = p.finance || { costLines: [] }; return { ...p, finance: { ...f, costLines: (f.costLines || []).map((l) => (l.id === lineId ? { ...l, ...patch } : l)) }, updatedAt: new Date().toISOString() }; }) })); }
+export function removeCostLine(projectId, lineId) { setState((s) => ({ ...s, projects: s.projects.map((p) => { if (p.id !== projectId) return p; const f = p.finance || { costLines: [] }; return { ...p, finance: { ...f, costLines: (f.costLines || []).filter((l) => l.id !== lineId) }, updatedAt: new Date().toISOString() }; }) })); }
 
 /* ----- [M5] 1인 실행 태스크 (handoffs와 분리·북극성 롤업 제외) ----- */
 const _tk = coll("tasks", () => ({ title: "", projectId: null, status: "todo", priority: "med", due: "", inbox: false, note: "" }));
