@@ -16,7 +16,7 @@ export default class ErrorBoundary extends React.Component {
       const blob = new Blob([exportJSON()], { type: "application/json" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `성장원장-복구백업-${isoDate()}.json`;
+      a.download = `역량플러스업-복구백업-${isoDate()}.json`;
       a.click();
     } catch (e) {}
   }

@@ -57,7 +57,7 @@ export default function Home() {
     const blob = new Blob([exportJSON()], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `성장원장-백업-${isoDate(new Date())}.json`;
+    a.download = `역량플러스업-백업-${isoDate(new Date())}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
     markBackup();
@@ -295,7 +295,7 @@ export default function Home() {
       {isEmpty && (
         <div className="panel empty section">
           <div className="em-ic">🌱</div>
-          <h3>성장원장을 시작해 보세요</h3>
+          <h3>역량플러스업을 시작해 보세요</h3>
           <p>흐름은 <b>기업 목표 → 타당성 검증 → 프로젝트 → 실행</b>입니다. 먼저 회사·고객사·임원의 <b>목표</b>를 하나 올리거나, 감이 안 잡히면 <b>예시</b>로 전체 흐름을 채워 둘러보세요.</p>
           <div className="gap-wrap" style={{ justifyContent: "center" }}>
             <button className="btn btn-primary" onClick={() => nav("/goals")}>목표 추가하기</button>

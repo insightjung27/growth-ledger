@@ -98,12 +98,12 @@ export default function Layout() {
   }, [openGroup]);
 
   async function doInstall() { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; setInstallEvt(null); }
-  function doExport() { download(exportJSON(), `성장원장-백업-${isoDate()}.json`); markBackup(); }
+  function doExport() { download(exportJSON(), `역량플러스업-백업-${isoDate()}.json`); markBackup(); }
   function onPickFile(e) {
     const f = e.target.files?.[0]; if (!f) return;
     const c = counts();
     if ((c.deals || c.moneyTests || c.decisions) && !confirm(`현재 데이터를 불러온 파일로 덮어씁니다. 먼저 현재 데이터를 백업합니다. 계속할까요?`)) { e.target.value = ""; return; }
-    if (c.deals || c.moneyTests || c.decisions) download(exportJSON(), `성장원장-교체전백업-${isoDate()}.json`);
+    if (c.deals || c.moneyTests || c.decisions) download(exportJSON(), `역량플러스업-교체전백업-${isoDate()}.json`);
     const reader = new FileReader();
     reader.onload = () => { try { importJSON(String(reader.result)); alert("백업을 불러왔습니다."); } catch (err) { alert("불러오기 실패: " + err.message); } };
     reader.readAsText(f); e.target.value = "";
@@ -133,7 +133,7 @@ export default function Layout() {
                 <circle cx="50" cy="20" r="5" fill="#6ee7b7" />
               </svg>
             </span>
-            <span className="brand-name">성장원장</span> <small>Growth Ledger</small>
+            <span className="brand-name">역량플러스업</span> <small>Capability Plus-Up</small>
           </NavLink>
           <span className="topbar-spacer" />
           {installEvt && <button className="iconbtn only-desk" onClick={doInstall} title="앱으로 설치">설치</button>}
@@ -168,7 +168,7 @@ export default function Layout() {
       <main className="main"><Outlet /></main>
 
       <footer className="footer">
-        성장원장 — 기업 목표에 정렬해 타당성을 검증하고, 제안·실행·사람을 관리합니다. 로그인하면 PC·폰이 동기화됩니다.
+        역량플러스업 — 기업 목표에 정렬해 타당성을 검증하고, 제안·실행·사람을 관리합니다. 로그인하면 PC·폰이 동기화됩니다.
       </footer>
 
       {/* FAB */}

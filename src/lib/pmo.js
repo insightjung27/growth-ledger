@@ -154,6 +154,6 @@ export function buildPmoReportMarkdown(state, now = new Date()) {
   else p.resources.forEach(({ m, open, overdue, blocked, since }) => L.push(`- ${m.name || "이름없음"}${m.area ? ` · ${m.area}` : ""}: 열린 ${open}${overdue ? ` · 기한초과 ${overdue}` : ""}${blocked ? ` · 막힘 ${blocked}` : ""} · 위임수준 L${m.levelCurrent || "-"}→L${m.levelTarget || "-"} · 최근 1:1 ${since == null ? "기록 없음" : since + "일 전"}`));
   L.push("");
   L.push("---");
-  L.push("읽기 전용 자동 집계 · 성장원장 PMO");
+  L.push("읽기 전용 자동 집계 · 역량플러스업 PMO");
   return L.join("\n");
 }

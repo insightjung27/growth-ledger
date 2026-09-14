@@ -33,12 +33,12 @@ export default function Settings() {
     setBusy(false);
     if (e) setErr(e); else setSent(true);
   }
-  function doExport() { download(exportJSON(), `성장원장-백업-${isoDate()}.json`); markBackup(); }
+  function doExport() { download(exportJSON(), `역량플러스업-백업-${isoDate()}.json`); markBackup(); }
   function onPickFile(e) {
     const f = e.target.files?.[0]; if (!f) return;
     const c = counts();
     if ((c.deals || c.moneyTests || c.decisions) && !confirm("현재 데이터를 불러온 파일로 덮어씁니다. 먼저 현재 데이터를 백업합니다. 계속할까요?")) { e.target.value = ""; return; }
-    if (c.deals || c.moneyTests || c.decisions) download(exportJSON(), `성장원장-교체전백업-${isoDate()}.json`);
+    if (c.deals || c.moneyTests || c.decisions) download(exportJSON(), `역량플러스업-교체전백업-${isoDate()}.json`);
     const reader = new FileReader();
     reader.onload = () => { try { importJSON(String(reader.result)); alert("불러왔습니다."); } catch (err2) { alert("불러오기 실패: " + err2.message); } };
     reader.readAsText(f); e.target.value = "";

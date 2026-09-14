@@ -31,7 +31,7 @@ export function downloadReviewIcs({ title, date }) {
     "DTSTART;VALUE=DATE:" + ymd(date),
     "DTEND;VALUE=DATE:" + nextYmd(date),
     "SUMMARY:" + summary,
-    "DESCRIPTION:예측 vs 실제를 대조하세요. (성장원장 판단 원장)",
+    "DESCRIPTION:예측 vs 실제를 대조하세요. (역량플러스업 판단 원장)",
     "END:VEVENT",
     "END:VCALENDAR",
   ];
@@ -47,6 +47,6 @@ export function downloadReviewIcs({ title, date }) {
 export function gcalUrl({ title, date }) {
   const text = encodeURIComponent("판단 대조: " + (title || "(제목 없음)"));
   const dates = ymd(date) + "/" + nextYmd(date);
-  const details = encodeURIComponent("예측 vs 실제를 대조하세요. (성장원장 판단 원장)");
+  const details = encodeURIComponent("예측 vs 실제를 대조하세요. (역량플러스업 판단 원장)");
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}`;
 }

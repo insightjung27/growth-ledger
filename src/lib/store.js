@@ -435,7 +435,7 @@ export function importJSON(text) {
   const parsed = JSON.parse(text);
   if (!parsed || typeof parsed !== "object") throw new Error("JSON 객체가 아닙니다.");
   for (const k of ["deals", "moneyTests", "weeklyReviews"]) {
-    if (!(k in parsed)) throw new Error(`성장원장 백업 형식이 아닙니다(${k} 없음).`);
+    if (!(k in parsed)) throw new Error(`역량플러스업 백업 형식이 아닙니다(${k} 없음).`);
     if (!Array.isArray(parsed[k])) throw new Error(`백업이 손상됐습니다(${k}가 목록이 아님).`);
   }
   try { localStorage.setItem(PRE_KEY, JSON.stringify(state)); } catch (e) {} // 덮어쓰기 직전 스냅샷

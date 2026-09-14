@@ -46,7 +46,7 @@ export default function PinGate({ children }) {
               <circle cx="50" cy="20" r="5" fill="#6ee7b7" />
             </svg>
           </span>
-          <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em" }}>성장원장</span>
+          <span style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em" }}>역량플러스업</span>
         </div>
         <p className="muted small" style={{ marginBottom: 18 }}>4자리 PIN을 입력하세요</p>
         <input
