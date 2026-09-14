@@ -7,7 +7,7 @@ import {
   updateFinance, addCostLine, updateCostLine, removeCostLine,
 } from "../lib/store.js";
 import { projectProgress } from "../lib/feasibility.js";
-import { computeFinance, FINANCE_MODES, COST_CATEGORIES, FINANCE_HOWTO } from "../lib/finance.js";
+import { computeFinance, FINANCE_MODES, COST_CATEGORIES, FINANCE_HOWTO, projectHealth } from "../lib/finance.js";
 import { won, pct, months, manToWon, wonToMan } from "../lib/format.js";
 
 const CONTRIB = [{ id: "high", l: "높음" }, { id: "med", l: "보통" }, { id: "low", l: "낮음" }];
@@ -41,6 +41,8 @@ export default function ProjectDetail() {
   const unlinkedSh = stakeholders.filter((s) => !linkedShIds.includes(s.id));
   const f = p.finance || {};
   const fr = computeFinance(f);
+  const health = projectHealth(p, tickets, new Date());
+  const HEALTH_KO = { red: "위험", amber: "주의", green: "양호", gray: "종료" };
   function assigneeName(t) {
     if (t.assigneeKind === "self") return "나";
     if (t.assigneeKind === "member") return members.find((m) => m.id === t.assigneeId)?.name || t.assigneeName || "팀원";
@@ -69,7 +71,10 @@ export default function ProjectDetail() {
       <div className="field" style={{ marginTop: 6 }}><input className="input title-input" value={p.title} placeholder="프로젝트명" onChange={(e) => set({ title: e.target.value })} /></div>
 
       <div className="panel panel-pad section">
-        <div className="section-title" style={{ marginBottom: 8 }}>라이프사이클</div>
+        <div className="between" style={{ marginBottom: 8, alignItems: "center" }}>
+          <div className="section-title" style={{ margin: 0 }}>라이프사이클</div>
+          <span className={"badge " + health.light} title={health.reasons.join(", ")}>헬스 {HEALTH_KO[health.light]}{health.reasons.length ? " · " + health.reasons[0] : ""}</span>
+        </div>
         <div className="seg" style={{ marginBottom: 12 }}>
           {PROJECT_STATUSES.map((s) => <button key={s.id} className={p.status === s.id ? "on" : ""} onClick={() => set({ status: s.id, ...(s.id === "executing" && !p.startedAt ? { startedAt: new Date().toISOString() } : {}), ...(["closed", "killed"].includes(s.id) && !p.closedAt ? { closedAt: new Date().toISOString() } : {}) })}>{s.label}</button>)}
         </div>
@@ -78,7 +83,10 @@ export default function ProjectDetail() {
           <b className="mono">{pr.pct == null ? "—" : pr.pct + "%"}{pr.total ? ` · ${pr.done}/${pr.total}` : ""}</b>
         </div>
         <div className="pbar" style={{ marginTop: 6 }}><span style={{ width: (pr.pct || 0) + "%" }} /></div>
-        <label className="check-row" style={{ marginTop: 12 }}><input type="checkbox" checked={!!p.selfExec} onChange={(e) => set({ selfExec: e.target.checked })} /> 내가 직접 수행하는 프로젝트</label>
+        <div className="between" style={{ marginTop: 12, alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <label className="check-row"><input type="checkbox" checked={!!p.selfExec} onChange={(e) => set({ selfExec: e.target.checked })} /> 내가 직접 수행하는 프로젝트</label>
+          <label className="gap-wrap" style={{ gap: 6 }}><span className="tiny muted">목표 종료일</span><input className="input" style={{ height: 34, width: 150 }} type="date" value={p.targetEndDate || ""} onChange={(e) => set({ targetEndDate: e.target.value || null })} /></label>
+        </div>
       </div>
 
       <div className="section">

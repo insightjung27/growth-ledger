@@ -1,31 +1,26 @@
 // PMO 집계(SSOT) + 상태 보고서 빌더. 대시보드(Pmo.jsx)와 보고서가 같은 계산을 공유.
+// 정본: 전략목표=companyGoals, 부하=미완 handoff ∪ 미완 ticket(member), 실행리스크=사실기반.
 import { isCompletedHandoff } from "./store.js";
-import { daysBetween, isoDate, won } from "./format.js";
+import { daysBetween, isoDate, won, pct } from "./format.js";
 import { rottingOf, pipelineWeighted } from "./deal.js";
+import { goalRollup, executionRisks, pendingApprovals } from "./feasibility.js";
+import { portfolioFinance, projectHealth } from "./finance.js";
 
 const STALE_DAYS = 14;
 const REVIEW_SAMPLE = 3;
 
-export function goalProgress(g) {
-  const t = parseFloat(String(g.targetValue ?? "").replace(/[^0-9.\-]/g, ""));
-  const c = parseFloat(String(g.currentValue ?? "").replace(/[^0-9.\-]/g, ""));
-  if (!isFinite(t) || t === 0 || !isFinite(c)) return null;
-  return Math.max(0, Math.min(1, c / t));
-}
 function meaningful(list) { return (list || []).filter((a) => a && String(a.what || "").trim()); }
 
-// 상태 문자열
 export const DEC_STATUS = [
   ["draft", "초안"], ["decided", "결정"], ["executing", "실행 중"], ["reviewed", "대조 완료"],
 ];
 
-// state에서 PMO 관점 전체 집계
 export function computePmo(state, now = new Date()) {
-  const { decisions = [], deals = [], handoffs = [], oneOnOnes = [], quarterlyGoals = [], teamMembers = [] } = state || {};
+  const { decisions = [], deals = [], handoffs = [], oneOnOnes = [], companyGoals = [], teamMembers = [], projects = [], tickets = [] } = state || {};
   const today = isoDate(now);
   const activeMembers = teamMembers.filter((m) => m.active !== false);
 
-  // 리스크 레지스터
+  // ===== 리스크 레지스터 — 위임과제·판단·딜 + 실행계층(티켓·마일스톤) =====
   const risks = [];
   for (const h of handoffs) {
     if (h.status === "done") continue;
@@ -37,6 +32,7 @@ export function computePmo(state, now = new Date()) {
     const stale = daysBetween(h.updatedAt, now);
     if (stale != null && stale > STALE_DAYS) risks.push({ to: "/handoffs/" + h.id, sev: "med", kind: `${stale}일 미갱신`, title, sub: "진행 확인" });
   }
+  for (const r of executionRisks(state, now, STALE_DAYS)) risks.push(r);
   for (const d of decisions) {
     const title = d.title || "(제목 없음)";
     if (d.status === "executing" && d.reviewDate && d.reviewDate <= today) { risks.push({ to: "/decisions/" + d.id, sev: "high", kind: "판단 대조 기한 도래", title, sub: "예측 vs 실제 미확인" }); continue; }
@@ -51,7 +47,7 @@ export function computePmo(state, now = new Date()) {
   risks.sort((a, b) => (sevRank[a.sev] ?? 3) - (sevRank[b.sev] ?? 3));
   const riskHigh = risks.filter((r) => r.sev === "high").length;
 
-  // 포트폴리오
+  // 위임과제 포트폴리오
   const hoOpen = handoffs.filter((h) => h.status !== "done" && h.status !== "blocked").length;
   const hoBlocked = handoffs.filter((h) => h.status === "blocked").length;
   const hoDone = handoffs.filter(isCompletedHandoff).length;
@@ -68,17 +64,32 @@ export function computePmo(state, now = new Date()) {
   const weighted = pipelineWeighted(deals);
   const openDeals = deals.filter((d) => d.stageId !== "won" && d.stageId !== "lost").length;
 
-  // 목표
-  const goals = quarterlyGoals.map((g) => ({ g, p: goalProgress(g) }));
+  // [M0] 전략목표(companyGoals) + 롤업
+  const goals = companyGoals.map((g) => ({ g, r: goalRollup(g, projects, tickets) }));
+  const goalsNoExec = goals.filter(({ r }) => r.hasNoExecution).length;
 
-  // 리소스
+  // [재무] 포트폴리오 + 프로젝트 헬스
+  const fin = portfolioFinance(projects);
+  const activeProjects = projects.filter((p) => !["closed", "killed"].includes(p.status));
+  let projRed = 0, projAmber = 0;
+  const projHealth = activeProjects.map((p) => { const h = projectHealth(p, tickets, now); if (h.light === "red") projRed++; else if (h.light === "amber") projAmber++; return { p, h }; })
+    .sort((a, b) => ({ red: 0, amber: 1, green: 2, gray: 3 }[a.h.light] - { red: 0, amber: 1, green: 2, gray: 3 }[b.h.light]));
+
+  // [M1] 리소스 — 미완 handoff ∪ 미완 ticket(member) 합집합
   const resources = activeMembers.map((m) => {
-    const active = handoffs.filter((h) => h.assigneeId === m.id && h.status !== "done").length;
+    const myHo = handoffs.filter((h) => h.assigneeId === m.id && h.status !== "done");
+    const myTk = tickets.filter((t) => t.assigneeKind === "member" && t.assigneeId === m.id && t.status !== "done");
+    const items = [...myHo.map((h) => ({ due: h.deadline, blocked: h.status === "blocked" })), ...myTk.map((t) => ({ due: t.due, blocked: t.status === "blocked" }))];
+    const open = items.length;
+    const overdue = items.filter((it) => it.due && String(it.due).slice(0, 10) < today).length;
+    const blocked = items.filter((it) => it.blocked).length;
     const dates = oneOnOnes.filter((o) => o.memberId === m.id && o.date).map((o) => o.date).sort();
     const last = dates.length ? dates[dates.length - 1] : null;
     const since = last ? daysBetween(last, now) : null;
-    return { m, active, since };
-  }).sort((a, b) => b.active - a.active);
+    return { m, open, overdue, blocked, active: open, since };
+  }).sort((a, b) => b.open - a.open);
+
+  const approvals = pendingApprovals(state);
 
   return {
     now, today, activeMembers,
@@ -86,7 +97,8 @@ export function computePmo(state, now = new Date()) {
     portfolio: { hoOpen, hoBlocked, hoDone, hoTotal: handoffs.length },
     decisions: { dc, reviewedN: reviewed.length, hits, hitText, hitReady, REVIEW_SAMPLE },
     dealsAgg: { weighted, openDeals },
-    goals, resources,
+    goals, goalsNoExec, fin, projHealth, projRed, projAmber, activeProjectN: activeProjects.length,
+    resources, approvals,
   };
 }
 
@@ -96,44 +108,50 @@ const SEV_LABEL = { high: "긴급", med: "중" };
 export function buildPmoReportMarkdown(state, now = new Date()) {
   const p = computePmo(state, now);
   const L = [];
-  L.push("# PMO 상태 보고서");
+  L.push("# 경영 · PMO 상태 보고서");
   L.push("");
   L.push(`발행: ${p.today}`);
   L.push("");
-  L.push("## 요약");
-  L.push(`- 리스크: ${p.risks.length}건 (긴급 ${p.riskHigh})`);
-  L.push(`- 진행 중 과제: ${p.portfolio.hoOpen}건 (완결 ${p.portfolio.hoDone} · 막힘 ${p.portfolio.hoBlocked})`);
-  L.push(`- 대조 적중률: ${p.decisions.hitText}${p.decisions.hitReady ? ` (대조 ${p.decisions.reviewedN}건 중 적중 ${p.decisions.hits})` : ` (표본 ${p.decisions.reviewedN}/${p.decisions.REVIEW_SAMPLE})`}`);
+
+  L.push("## 경영 요약");
+  L.push(`- 위험 프로젝트: ${p.projRed}건 (주의 ${p.projAmber} · 활성 ${p.activeProjectN})`);
+  L.push(`- 리스크 신호: ${p.risks.length}건 (긴급 ${p.riskHigh})`);
   L.push(`- 가중 파이프라인: ${won(p.dealsAgg.weighted)} (열린 딜 ${p.dealsAgg.openDeals})`);
+  L.push(`- 승인 대기: ${p.approvals.length}건`);
+  L.push(`- 대조 적중률: ${p.decisions.hitText}${p.decisions.hitReady ? ` (대조 ${p.decisions.reviewedN}건 중 적중 ${p.decisions.hits})` : ` (표본 ${p.decisions.reviewedN}/${p.decisions.REVIEW_SAMPLE})`}`);
+  L.push("");
+
+  L.push("## 재무 요약");
+  L.push(`- 포트폴리오 예산: ${won(p.fin.budget)} · 소진 ${won(p.fin.spent)}${p.fin.burnPct != null ? ` (${pct(p.fin.burnPct)})` : ""} · 잔여 ${won(p.fin.remaining)}`);
+  L.push(`- 수주형 이익(실적): ${won(p.fin.profit)}`);
+  if (p.fin.valueCreated) L.push(`- 내부 절감가치(추정): ${won(p.fin.valueCreated)}`);
+  L.push(`- 재무위험 프로젝트: ${p.fin.atRisk}건`);
+  L.push("");
+
+  L.push("## 전략목표 진척");
+  if (p.goals.length === 0) L.push("- 등록된 전략목표 없음 (목표 화면에서 추가)");
+  else p.goals.forEach(({ g, r }) => L.push(`- ${g.title || "(무제)"}: 진척 ${r.progress != null ? r.progress + "%" : "—"} · 활성 프로젝트 ${r.activeCount} · 예산 ${won(r.budget)}${r.hasNoExecution ? " · ⚠️ 전략 미집행(프로젝트 0)" : ""}`));
+  L.push("");
+
+  L.push("## 프로젝트 포트폴리오 (헬스순)");
+  if (p.projHealth.length === 0) L.push("- 활성 프로젝트 없음");
+  else p.projHealth.forEach(({ p: pj, h }) => L.push(`- ${h.light === "red" ? "🔴 위험" : h.light === "amber" ? "🟡 주의" : "🟢 양호"} ${pj.title || "(무제)"}${h.reasons.length ? ` (${h.reasons.join(", ")})` : ""}`));
   L.push("");
 
   L.push("## 리스크 · 이슈 (긴급순)");
   if (p.risks.length === 0) L.push("- 지금 리스크 신호 없음");
-  else p.risks.forEach((r) => L.push(`- [${SEV_LABEL[r.sev] || "중"}] ${r.kind} — "${r.title}"${r.sub ? ` (${r.sub})` : ""}`));
+  else p.risks.slice(0, 15).forEach((r) => L.push(`- [${SEV_LABEL[r.sev] || "중"}] ${r.kind} — "${r.title}"${r.sub ? ` (${r.sub})` : ""}`));
   L.push("");
 
-  L.push("## 진척");
-  L.push("### 분기목표");
-  if (p.goals.length === 0) L.push("- 등록된 분기목표 없음");
-  else p.goals.forEach(({ g, p: pr }) => L.push(`- ${g.title || "(무제)"}: ${g.currentValue || "-"} / ${g.targetValue || "-"}${pr != null ? ` (${Math.round(pr * 100)}%)` : ""} · ${g.status}`));
-  L.push("### 위임과제 포트폴리오");
-  L.push(`- 진행 ${p.portfolio.hoOpen} · 막힘 ${p.portfolio.hoBlocked} · 완결(북극성) ${p.portfolio.hoDone} · 전체 ${p.portfolio.hoTotal}`);
-  L.push("");
+  if (p.approvals.length) {
+    L.push("## 승인 · 결정 대기");
+    p.approvals.forEach((a) => L.push(`- ${a.kind} — "${a.title}"`));
+    L.push("");
+  }
 
-  L.push("## 의사결정");
-  L.push(`- ${DEC_STATUS.map(([k, lab]) => `${lab} ${p.decisions.dc[k]}`).join(" · ")}`);
-  L.push(`- 대조 적중률: ${p.decisions.hitText}`);
-  L.push("");
-
-  L.push("## 다음 액션 (우선순위)");
-  const acts = p.risks.slice(0, 5);
-  if (acts.length === 0) L.push("- 긴급 액션 없음 — 리듬 점검(주간 리뷰·1:1·대조)");
-  else acts.forEach((r, i) => L.push(`${i + 1}. ${r.kind} — "${r.title}"`));
-  L.push("");
-
-  L.push("## 리소스");
+  L.push("## 리소스 (부하순)");
   if (p.resources.length === 0) L.push("- 1인 단계 (팀원 없음)");
-  else p.resources.forEach(({ m, active, since }) => L.push(`- ${m.name || "이름없음"}${m.area ? ` · ${m.area}` : ""}: 활성 과제 ${active} · 위임수준 L${m.levelCurrent || "-"}→L${m.levelTarget || "-"} · 최근 1:1 ${since == null ? "기록 없음" : since + "일 전"}`));
+  else p.resources.forEach(({ m, open, overdue, blocked, since }) => L.push(`- ${m.name || "이름없음"}${m.area ? ` · ${m.area}` : ""}: 열린 ${open}${overdue ? ` · 기한초과 ${overdue}` : ""}${blocked ? ` · 막힘 ${blocked}` : ""} · 위임수준 L${m.levelCurrent || "-"}→L${m.levelTarget || "-"} · 최근 1:1 ${since == null ? "기록 없음" : since + "일 전"}`));
   L.push("");
   L.push("---");
   L.push("읽기 전용 자동 집계 · 성장원장 PMO");

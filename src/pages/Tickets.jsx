@@ -106,7 +106,9 @@ function TicketModal({ t, projects, members, stakeholders, onClose }) {
   const [d, setD] = useState(t);
   const set = (patch) => setD((v) => ({ ...v, ...patch }));
   const setDlg = (patch) => setD((v) => ({ ...v, delegation: { ...v.delegation, ...patch } }));
+  const blockedNoReason = d.status === "blocked" && !((d.blocker && d.blocker.reason) || "").trim();
   function save() {
+    if (blockedNoReason) return;
     let assigneeName = d.assigneeName;
     if (d.assigneeKind === "member") assigneeName = members.find((m) => m.id === d.assigneeId)?.name || "";
     if (d.assigneeKind === "stakeholder") assigneeName = stakeholders.find((s) => s.id === d.assigneeId)?.name || "";
@@ -115,7 +117,7 @@ function TicketModal({ t, projects, members, stakeholders, onClose }) {
   }
   return (
     <Modal title="티켓" onClose={onClose}
-      footer={<><button className="btn" onClick={onClose}>취소</button><button className="btn btn-primary" onClick={save}>저장</button></>}>
+      footer={<><button className="btn" onClick={onClose}>취소</button><button className="btn btn-primary" onClick={save} disabled={blockedNoReason} title={blockedNoReason ? "막힌 원인을 입력하세요" : undefined}>저장</button></>}>
       <div className="field"><label>제목</label><input className="input" value={d.title} onChange={(e) => set({ title: e.target.value })} /></div>
       <div className="row2">
         <div className="field"><label>상태</label>
@@ -125,6 +127,13 @@ function TicketModal({ t, projects, members, stakeholders, onClose }) {
           <div className="seg">{PRIO.map((p) => <button key={p.id} className={d.priority === p.id ? "on" : ""} onClick={() => set({ priority: p.id })}>{p.l}</button>)}</div>
         </div>
       </div>
+      {d.status === "blocked" && (
+        <div className="field">
+          <label>막힌 원인 <span style={{ color: "var(--red)" }}>*</span></label>
+          <input className="input" value={(d.blocker && d.blocker.reason) || ""} placeholder="무엇 때문에 막혔나 · 해제 조건" onChange={(e) => setD((v) => ({ ...v, blocker: { ...(v.blocker || {}), reason: e.target.value } }))} />
+          <input className="input" style={{ marginTop: 6 }} value={(d.blocker && d.blocker.neededFrom) || ""} placeholder="누구/무엇이 필요한가 (선택)" onChange={(e) => setD((v) => ({ ...v, blocker: { ...(v.blocker || {}), neededFrom: e.target.value } }))} />
+        </div>
+      )}
       <div className="row2">
         <div className="field"><label>프로젝트</label>
           <select className="select" value={d.projectId || ""} onChange={(e) => set({ projectId: e.target.value || null })}>

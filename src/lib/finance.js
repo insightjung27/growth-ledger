@@ -72,17 +72,39 @@ export function computeFinance(f) {
   return { mode, budget, revenue, plannedCost, actualCost, spent, remaining, burnPct, budgetVariance, planCostVariance, overBudget, byCategory, profitPlanned, profitActual, margin, roi, payback, light, note, hasData: !!(budget || revenue || plannedCost || actualCost) };
 }
 
+// [M3] 프로젝트 헬스(파생·저장금지) — 사실 신호만 red. 페이스는 amber 힌트까지.
+export function projectHealth(project, tickets, now = new Date()) {
+  if (["closed", "killed"].includes(project.status)) return { light: "gray", reasons: [] };
+  const iso = (now instanceof Date ? now : new Date(now)).toISOString().slice(0, 10);
+  const f = computeFinance(project.finance);
+  const pts = (tickets || []).filter((t) => t.projectId === project.id);
+  const hasBlocked = pts.some((t) => t.status === "blocked");
+  const overdueMs = (project.milestones || []).some((m) => !m.done && m.targetDate && String(m.targetDate).slice(0, 10) < iso);
+  const red = [];
+  if (overdueMs) red.push("마일스톤 기한초과");
+  if (f.light === "red") red.push("재무 위험");
+  if (hasBlocked) red.push("막힌 티켓");
+  if (red.length) return { light: "red", reasons: red };
+  const amber = [];
+  if (project.targetEndDate && String(project.targetEndDate).slice(0, 10) < iso) amber.push("목표종료일 경과");
+  if (f.light === "amber") amber.push("마진 얇음");
+  if (pts.some((t) => t.status !== "done" && t.due && String(t.due).slice(0, 10) < iso)) amber.push("기한초과 티켓");
+  if (amber.length) return { light: "amber", reasons: amber };
+  return { light: "green", reasons: [] };
+}
+
 // 포트폴리오 합산(전체·열린 프로젝트 구분)
 export function portfolioFinance(projects) {
   const open = (projects || []).filter((p) => !["killed"].includes(p.status));
-  let budget = 0, spent = 0, revenue = 0, profit = 0, atRisk = 0;
+  let budget = 0, spent = 0, revenue = 0, profit = 0, valueCreated = 0, atRisk = 0;
   for (const p of open) {
     const r = computeFinance(p.finance);
     budget += r.budget; spent += r.spent; revenue += r.revenue;
     if (r.mode === "earn") profit += (r.profitActual || 0);
+    else valueCreated += (r.profitActual || 0); // save: 연 절감가치(추정)
     if (r.overBudget || r.light === "red") atRisk += 1;
   }
-  return { count: open.length, budget, spent, remaining: budget - spent, revenue, profit, atRisk, burnPct: budget > 0 ? spent / budget : null };
+  return { count: open.length, budget, spent, remaining: budget - spent, revenue, profit, valueCreated, atRisk, burnPct: budget > 0 ? spent / budget : null };
 }
 
 // "어떻게 하는가" — 수익성·원가·예산 실전 코칭

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore, currentWeekKey, exportJSON, markBackup, hasRestorePoint, restorePrevious, clearRestorePoint, isCompletedHandoff } from "../lib/store.js";
-import { findOrphans, pendingPredictions } from "../lib/feasibility.js";
+import { findOrphans, pendingPredictions, executionRisks, pendingApprovals, goalRollup } from "../lib/feasibility.js";
 import { seedExample } from "../lib/onboarding.js";
 import { pipelineWeighted, rottingOf, stageById } from "../lib/deal.js";
 import { compute } from "../lib/money.js";
@@ -23,7 +23,7 @@ const PRI = {
   2: { badge: "amber", label: "오늘" },
   3: { badge: "gray", label: "준비" },
 };
-const PILLAR_LABEL = { "1": "판단", "2": "사람" };
+const PILLAR_LABEL = { "1": "판단", "2": "사람", "3": "실행" };
 
 // 판단 프레임 등에 쓰는 균형 선택: 우선순위 유지하며 두 기둥을 번갈아.
 function pickTop(items, n, balance) {
@@ -73,6 +73,7 @@ export default function Home() {
   const weekKey = currentWeekKey();
   const orphans = useMemo(() => findOrphans(state), [state]);
   const pendingPreds = useMemo(() => pendingPredictions(state, todayIso), [state, todayIso]);
+  const approvals = useMemo(() => pendingApprovals(state), [state]);
   const activeMembers = useMemo(() => (teamMembers || []).filter((m) => m.active !== false), [teamMembers]);
   const hasTeam = activeMembers.length >= 1;
 
@@ -169,6 +170,17 @@ export default function Home() {
       }
     }
 
+    // --- 기둥③ 실행: 티켓·마일스톤 사실기반 리스크 ---
+    for (const r of executionRisks(state, now)) {
+      const isHi = r.sev === "high";
+      (isHi ? p1 : p2).push({ id: "exec-" + r.to + "-" + r.title, priority: isHi ? 1 : 2, pillar: "3", text: `${r.kind} — "${r.title}"${r.sub ? " · " + r.sub : ""}`, to: r.to, cta: "열기" });
+    }
+    // --- 전략목표 미집행(연결 활성 프로젝트 0) ---
+    for (const g of companyGoals || []) {
+      const rr = goalRollup(g, projects || [], tickets || []);
+      if (rr.hasNoExecution) p2.push({ id: "goal-noexec-" + g.id, priority: 2, pillar: "3", text: `목표 "${g.title || "(무제)"}" — 연결된 활성 프로젝트가 없습니다(전략 미집행)`, to: "/goals", cta: "정렬" });
+    }
+
     // 금요일이면 미작성 자기리뷰를 P1로 승격(주간이 정본 리듬)
     if (isFriday && !weeklyDone) p1.unshift({ id: "weekly-friday", priority: 1, pillar: "cross", sticky: true, text: "금요일 — 이번 주 자기리뷰가 비었습니다(직접 푼 일 vs 남이 해결하게 만든 일)", to: "/weekly", cta: "주간 리뷰" });
 
@@ -182,7 +194,7 @@ export default function Home() {
     }
     return { signals: merged, overdueReviews: overdue };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deals, moneyTests, decisions, handoffs, oneOnOnes, quarterlyGoals, activeMembers, weeklyDone, isFriday, todayIso]);
+  }, [deals, moneyTests, decisions, handoffs, oneOnOnes, quarterlyGoals, projects, tickets, companyGoals, activeMembers, weeklyDone, isFriday, todayIso]);
 
   const today = useMemo(() => pickTop(signals, 3, hasTeam), [signals, hasTeam]);
   const todayIds = new Set(today.map((t) => t.id));
@@ -303,6 +315,13 @@ export default function Home() {
         <div className="notice info section between" style={{ alignItems: "center" }}>
           <span><b>판정 대기 예측 {pendingPreds.length}건</b> — 마감이 지난 예측이 있습니다. 대조해야 판단력이 숫자로 쌓입니다.</span>
           <button className="btn btn-sm btn-primary" style={{ flex: "0 0 auto" }} onClick={() => nav("/predictions")}>판정하기</button>
+        </div>
+      )}
+
+      {!isEmpty && approvals.length > 0 && (
+        <div className="notice info section between" style={{ alignItems: "center" }}>
+          <span><b>승인·결정 대기 {approvals.length}건</b> — Go 판정 미승격 또는 발의/검증 상태로 멈춘 프로젝트가 있습니다.</span>
+          <button className="btn btn-sm btn-primary" style={{ flex: "0 0 auto" }} onClick={() => nav(approvals[0].to)}>확인</button>
         </div>
       )}
 

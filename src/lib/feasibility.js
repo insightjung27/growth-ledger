@@ -1,6 +1,8 @@
 // 타당성 스코어링 엔진 + 정렬/진척/orphan 파생 — 전부 순수함수(파생값 저장 금지).
 // ★정직 규율: computedScore는 '주관 1~5 채점 기반 보조 점수'. 하드게이트 서사·근거가 우선.
 
+import { daysBetween, isoDate } from "./format.js";
+
 export const FEAS_AXES = [
   { key: "goalAlign", label: "목표정렬", weight: 25, dir: 1, hint: "연결한 KR을 이 일이 얼마나 직접 전진시키나" },
   { key: "value", label: "가치·ROI", weight: 20, dir: 1, hint: "회수·ROI·이익 — 연결한 머니테스트가 근거" },
@@ -89,6 +91,56 @@ export function findOrphans(state) {
 /* ===== [M8] 판정 대기 예측(마감 지남 & 미판정) ===== */
 export function pendingPredictions(state, todayIso) {
   return (state.predictions || []).filter((p) => p.resolution == null && p.resolveBy && String(p.resolveBy).slice(0, 10) <= todayIso);
+}
+
+/* ===== [M0] 목표 롤업(파생) — 목표별 실행·예산·가치·팀부하·진척 ===== */
+export function goalRollup(goal, projects, tickets) {
+  const gid = goal.id;
+  const linked = (projects || []).filter((p) => p.goalId === gid && p.status !== "killed");
+  const active = linked.filter((p) => !["closed", "killed"].includes(p.status));
+  let budget = 0, value = 0;
+  for (const p of linked) { const f = p.finance || {}; budget += Number(f.budget) || 0; value += Number(f.revenue) || 0; }
+  const projIds = new Set(active.map((p) => p.id));
+  const assignees = new Set();
+  let openTickets = 0;
+  for (const t of (tickets || [])) { if (projIds.has(t.projectId) && t.status !== "done") { openTickets++; if (t.assigneeId) assignees.add(t.assigneeId); } }
+  const gp = goalProgress(goal);
+  return { linkedCount: linked.length, activeCount: active.length, budget, value, teamLoad: assignees.size, openTickets, progress: gp.pct, hasNoExecution: active.length === 0 };
+}
+
+/* ===== [M2] 실행계층 리스크(사실 기반만 — 거짓정밀 페이스 판정 금지) ===== */
+export function executionRisks(state, now = new Date(), staleDays = 14) {
+  const todayIso = isoDate(now);
+  const out = [];
+  const projById = {};
+  (state.projects || []).forEach((p) => { projById[p.id] = p; });
+  for (const t of (state.tickets || [])) {
+    if (t.status === "done") continue;
+    const title = t.title || "(무제)";
+    const pjt = t.projectId ? (projById[t.projectId]?.title || "프로젝트") : "미분류";
+    if (t.status === "blocked") { out.push({ to: "/tickets", sev: "high", kind: "티켓 막힘", title, sub: (t.blocker && t.blocker.reason) || "원인 해제 필요" }); continue; }
+    if (t.due && String(t.due).slice(0, 10) < todayIso) { out.push({ to: "/tickets", sev: "high", kind: "티켓 기한 초과", title, sub: `${pjt} · 마감 ${t.due}` }); continue; }
+    if (t.status === "doing") { const st = daysBetween(t.updatedAt, now); if (st != null && st > staleDays) out.push({ to: "/tickets", sev: "med", kind: `티켓 ${st}일 정체`, title, sub: pjt }); }
+  }
+  for (const p of (state.projects || [])) {
+    if (["closed", "killed"].includes(p.status)) continue;
+    for (const m of (p.milestones || [])) {
+      if (!m.done && m.targetDate && String(m.targetDate).slice(0, 10) < todayIso) out.push({ to: "/projects/" + p.id, sev: "high", kind: "마일스톤 기한 초과", title: m.name || "(무제 마일스톤)", sub: `${p.title || "프로젝트"} · ${m.targetDate}` });
+    }
+  }
+  return out;
+}
+
+/* ===== [승인 대기] Go 케이스 미승격 + 발의/검증 정체 프로젝트 ===== */
+export function pendingApprovals(state) {
+  const out = [];
+  for (const c of (state.feasibilityCases || [])) {
+    try { const v = scoreCase(c); if (v.verdict === "go" && !c.projectId) out.push({ to: "/feasibility/" + c.id, kind: "타당성 Go · 프로젝트 미승격", title: c.title || "(무제)" }); } catch (e) {}
+  }
+  for (const p of (state.projects || [])) {
+    if (p.status === "proposed" || p.status === "verified") out.push({ to: "/projects/" + p.id, kind: `${p.status === "proposed" ? "발의" : "검증"} · 승인 대기`, title: p.title || "(무제)" });
+  }
+  return out;
 }
 
 /* ===== 예측 캘리브레이션(파생 — 표본게이트는 화면에서) ===== */

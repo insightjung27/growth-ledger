@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore, addProject, PROJECT_STATUSES } from "../lib/store.js";
 import { projectProgress, findOrphans } from "../lib/feasibility.js";
-import { portfolioFinance } from "../lib/finance.js";
+import { portfolioFinance, projectHealth } from "../lib/finance.js";
 import { won, pct } from "../lib/format.js";
 import Modal from "../components/Modal.jsx";
 
@@ -24,6 +24,7 @@ export default function Projects() {
   const statusById = Object.fromEntries(PROJECT_STATUSES.map((s) => [s.id, s]));
   const orphans = useMemo(() => findOrphans(state).filter((o) => o.type === "project"), [state]);
   const pf = useMemo(() => portfolioFinance(projects), [projects]);
+  const riskN = useMemo(() => projects.filter((p) => !["closed", "killed"].includes(p.status) && projectHealth(p, tickets, new Date()).light === "red").length, [projects, tickets]);
 
   const view = useMemo(() => {
     const rank = (p) => PROJECT_STATUSES.findIndex((s) => s.id === p.status);
@@ -59,6 +60,12 @@ export default function Projects() {
         </div>
       )}
 
+      {riskN > 0 && (
+        <div className="notice warn section">
+          <b>🔴 위험 프로젝트 {riskN}건</b> — 마일스톤 기한초과·재무 위험·막힌 티켓. 목록의 빨간 점을 확인하세요.
+        </div>
+      )}
+
       {projects.length > 0 && (
         <div className="stat-row section">
           <div className="stat"><div className="k">전체 프로젝트</div><div className="v">{projects.length}<small>건</small></div><div className="d">라이프사이클 관리</div></div>
@@ -91,15 +98,17 @@ export default function Projects() {
           {view.map((p) => {
             const g = p.goalId ? goalById[p.goalId] : null;
             const pr = projectProgress(p, tickets, handoffs);
+            const h = projectHealth(p, tickets, new Date());
             return (
               <button key={p.id} className="li-card" onClick={() => nav("/projects/" + p.id)}>
+                <span className={"dot " + h.light} style={{ flex: "0 0 auto" }} title={h.reasons.join(", ") || "양호"} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="gap-wrap" style={{ marginBottom: 3 }}>
                     <span className={"badge " + STATUS_LIGHT[p.status]}>{statusById[p.status]?.label}</span>
                     {p.selfExec ? <span className="badge gray">직접수행</span> : null}
                     <b style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title || "(무제)"}</b>
                   </div>
-                  <div className="tiny muted">{g ? `목표: ${g.title}` : "목표 미정렬"} · 진척 {pr.pct == null ? "—" : pr.pct + "%"}{pr.total ? ` (${pr.done}/${pr.total})` : ""}</div>
+                  <div className="tiny muted">{g ? `목표: ${g.title}` : "목표 미정렬"} · 진척 {pr.pct == null ? "—" : pr.pct + "%"}{pr.total ? ` (${pr.done}/${pr.total})` : ""}{h.reasons.length ? " · " + h.reasons[0] : ""}</div>
                 </div>
                 <span className="chev">›</span>
               </button>

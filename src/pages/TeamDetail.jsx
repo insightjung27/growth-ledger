@@ -80,6 +80,8 @@ export default function TeamDetail() {
   const nav = useNavigate();
   const member = useStore((s) => s.teamMembers.find((m) => m.id === id));
   const handoffs = useStore((s) => s.handoffs).filter((h) => h.assigneeId === id);
+  const myTickets = useStore((s) => s.tickets).filter((t) => t.assigneeKind === "member" && t.assigneeId === id);
+  const projects = useStore((s) => s.projects);
   const oneOnOnes = useStore((s) => s.oneOnOnes).filter((o) => o.memberId === id).sort((a, b) => ((a.date || a.createdAt) < (b.date || b.createdAt) ? 1 : -1));
 
   const [newLevel, setNewLevel] = useState(null);
@@ -315,9 +317,35 @@ export default function TeamDetail() {
         <ListEditor items={member.operations} placeholder="상시로 담당하는 운영업무" empty="등록된 운영업무가 없습니다." onChange={(v) => set({ operations: v })} />
       </div>
 
+      {/* 담당 티켓 */}
+      <div className="section">
+        <div className="section-title">담당 티켓 {myTickets.filter((t) => t.status !== "done").length ? <span className="badge gray" style={{ marginLeft: 6 }}>미완 {myTickets.filter((t) => t.status !== "done").length}</span> : null}</div>
+        <div className="panel panel-pad">
+          {myTickets.length === 0 ? (
+            <div className="muted small">이 사람에게 배정된 티켓이 없습니다. <Link to="/tickets">티켓</Link>에서 담당자를 이 팀원으로 지정하세요.</div>
+          ) : (
+            <div className="stack">
+              {myTickets.map((t) => {
+                const pj = t.projectId ? (projects.find((p) => p.id === t.projectId)?.title || "프로젝트") : "미분류";
+                const overdue = t.due && t.status !== "done" && t.due < (new Date().toISOString().slice(0, 10));
+                return (
+                  <Link key={t.id} to="/tickets" className="li" style={{ textDecoration: "none" }}>
+                    <div className="li-main">
+                      <div className="li-title">{t.title || "(무제)"}</div>
+                      <div className="li-sub">{pj}{t.due ? <span style={{ color: overdue ? "var(--red)" : "inherit" }}> · 기한 {t.due}{overdue ? "(지남)" : ""}</span> : ""}{t.isDelegation ? " · 위임" : ""}</div>
+                    </div>
+                    <span className={"badge " + (t.status === "done" ? "green" : t.status === "blocked" ? "red" : t.status === "doing" ? "amber" : "gray")}>{t.status}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* 배정된 위임과제 */}
       <div className="section">
-        <div className="section-title">배정된 위임과제</div>
+        <div className="section-title">배정된 위임과제 (레거시)</div>
         <div className="panel panel-pad">
           {handoffs.length === 0 ? (
             <div className="muted small">이 사람에게 배정된 위임과제가 없습니다. <Link to="/handoffs">위임과제</Link>에서 6요소로 하나 넘겨보세요.</div>

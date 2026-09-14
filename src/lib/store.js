@@ -148,7 +148,7 @@ function sanitize(obj) {
     gates: { compliance: true, reversibility: "reversible", budgetFit: true, ...(x && x.gates) },
   }));
   s.projects = s.projects.map((x) => ({
-    title: "", goalId: null, krId: null, caseId: null, proposalId: null, dealId: null, status: "proposed", selfExec: false, contribution: "med", startedAt: null, closedAt: null, ...x,
+    title: "", goalId: null, krId: null, caseId: null, proposalId: null, dealId: null, status: "proposed", selfExec: false, contribution: "med", startedAt: null, targetEndDate: null, closedAt: null, ...x,
     stakeholderIds: Array.isArray(x && x.stakeholderIds) ? x.stakeholderIds : [],
     handoffIds: Array.isArray(x && x.handoffIds) ? x.handoffIds : [],
     taskIds: Array.isArray(x && x.taskIds) ? x.taskIds : [],
@@ -158,6 +158,7 @@ function sanitize(obj) {
   s.tasks = s.tasks.map((x) => ({ title: "", projectId: null, status: "todo", priority: "med", due: "", inbox: false, note: "", ...x }));
   s.tickets = (Array.isArray(s.tickets) ? s.tickets : []).map((x) => ({
     title: "", description: "", projectId: null, assigneeKind: "self", assigneeId: null, assigneeName: "", status: "todo", priority: "med", due: "", isDelegation: false, ...x,
+    blocker: { reason: "", neededFrom: "", ...(x && x.blocker) },
     delegation: { level: 2, outcome: "", metric: "", boundary: "", authority: "", checkpoints: [], result: { met: "", autonomy: "", rework: false, note: "" }, ...(x && x.delegation) },
   }));
   // 레거시 tasks → 통합 tickets 1회 이관(assignee=self)
@@ -338,7 +339,7 @@ export const PROJECT_STATUSES = [
   { id: "held", label: "보류", prob: 0 },
   { id: "killed", label: "중단", prob: 0 },
 ];
-const _pj = coll("projects", () => ({ title: "", goalId: null, krId: null, caseId: null, proposalId: null, dealId: null, status: "proposed", stakeholderIds: [], handoffIds: [], taskIds: [], milestones: [], selfExec: false, contribution: "med", startedAt: null, closedAt: null, finance: { mode: "earn", budget: 0, revenue: 0, currency: "KRW", costLines: [] } }));
+const _pj = coll("projects", () => ({ title: "", goalId: null, krId: null, caseId: null, proposalId: null, dealId: null, status: "proposed", stakeholderIds: [], handoffIds: [], taskIds: [], milestones: [], selfExec: false, contribution: "med", startedAt: null, targetEndDate: null, closedAt: null, finance: { mode: "earn", budget: 0, revenue: 0, currency: "KRW", costLines: [] } }));
 export const addProject = _pj.add, updateProject = _pj.update, getProject = _pj.get;
 export function removeProject(id) {
   setState((s) => ({
@@ -387,7 +388,7 @@ export const ASSIGNEE_KINDS = [
   { id: "stakeholder", l: "이해관계자" },
   { id: "external", l: "외부" },
 ];
-const _tc = coll("tickets", () => ({ title: "", description: "", projectId: null, assigneeKind: "self", assigneeId: null, assigneeName: "", status: "todo", priority: "med", due: "", isDelegation: false, delegation: { level: 2, outcome: "", metric: "", boundary: "", authority: "", checkpoints: [], result: { met: "", autonomy: "", rework: false, note: "" } } }));
+const _tc = coll("tickets", () => ({ title: "", description: "", projectId: null, assigneeKind: "self", assigneeId: null, assigneeName: "", status: "todo", priority: "med", due: "", blocker: { reason: "", neededFrom: "" }, isDelegation: false, delegation: { level: 2, outcome: "", metric: "", boundary: "", authority: "", checkpoints: [], result: { met: "", autonomy: "", rework: false, note: "" } } }));
 export const addTicket = _tc.add, updateTicket = _tc.update, removeTicket = _tc.remove, getTicket = _tc.get;
 
 /* ----- [M9] 이해관계자 (발의자·임원·고객사 담당 — teamMembers와 분리) ----- */

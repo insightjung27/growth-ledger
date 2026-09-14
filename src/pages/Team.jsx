@@ -4,7 +4,7 @@ import {
   useStore, addTeamMember, addGoal, updateGoal, removeGoal, logGoalChange,
   DELEGATION_LEVELS,
 } from "../lib/store.js";
-import { relDate } from "../lib/format.js";
+import { relDate, isoDate } from "../lib/format.js";
 import { GUIDE_SECTIONS } from "../lib/guidance.js";
 import Modal from "../components/Modal.jsx";
 import HowTo from "../components/HowTo.jsx";
@@ -65,6 +65,15 @@ export default function Team() {
   const goals = useStore((s) => s.quarterlyGoals);
   const oneOnOnes = useStore((s) => s.oneOnOnes);
   const handoffs = useStore((s) => s.handoffs);
+  const tickets = useStore((s) => s.tickets);
+  const todayKey = isoDate(new Date());
+  function memberLoad(id) {
+    const items = [
+      ...handoffs.filter((h) => h.assigneeId === id && h.status !== "done").map((h) => ({ due: h.deadline, blocked: h.status === "blocked" })),
+      ...tickets.filter((t) => t.assigneeKind === "member" && t.assigneeId === id && t.status !== "done").map((t) => ({ due: t.due, blocked: t.status === "blocked" })),
+    ];
+    return { open: items.length, overdue: items.filter((it) => it.due && String(it.due).slice(0, 10) < todayKey).length, blocked: items.filter((it) => it.blocked).length };
+  }
 
   const quarter = currentQuarter();
   const qGoals = goals.filter((g) => g.quarter === quarter);
@@ -166,6 +175,7 @@ export default function Team() {
                         </div>
                         <div style={{ marginTop: 6 }}><LevelGauge current={m.levelCurrent} target={m.levelTarget} /></div>
                         <div className="gap-wrap" style={{ marginTop: 7 }}>
+                          {(() => { const l = memberLoad(m.id); return l.open ? <span className={"badge " + (l.overdue || l.blocked ? "red" : l.open >= 4 ? "amber" : "gray")} title="담당 티켓+위임과제(미완)">열린 {l.open}{l.overdue ? ` · 기한초과 ${l.overdue}` : ""}{l.blocked ? ` · 막힘 ${l.blocked}` : ""}</span> : null; })()}
                           <span className={"badge " + (staleOneOnOne ? "amber" : "gray")}>
                             {last ? `최근 1:1 ${relDate(last)}` : "1:1 기록 없음"}
                           </span>
