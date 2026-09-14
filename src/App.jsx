@@ -17,6 +17,14 @@ import Weekly from "./pages/Weekly.jsx";
 import Growth from "./pages/Growth.jsx";
 import Pmo from "./pages/Pmo.jsx";
 import Guide from "./pages/Guide.jsx";
+import Goals from "./pages/Goals.jsx";
+import Feasibility from "./pages/Feasibility.jsx";
+import FeasibilityDetail from "./pages/FeasibilityDetail.jsx";
+import Projects from "./pages/Projects.jsx";
+import ProjectDetail from "./pages/ProjectDetail.jsx";
+import Stakeholders from "./pages/Stakeholders.jsx";
+import Predictions from "./pages/Predictions.jsx";
+import Tasks from "./pages/Tasks.jsx";
 
 export default function App() {
   return (
@@ -25,6 +33,14 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route index element={<Home />} />
+            <Route path="goals" element={<Goals />} />
+            <Route path="feasibility" element={<Feasibility />} />
+            <Route path="feasibility/:id" element={<FeasibilityDetail />} />
+            <Route path="projects" element={<Projects />} />
+            <Route path="projects/:id" element={<ProjectDetail />} />
+            <Route path="stakeholders" element={<Stakeholders />} />
+            <Route path="predictions" element={<Predictions />} />
+            <Route path="tasks" element={<Tasks />} />
             <Route path="decisions" element={<Decisions />} />
             <Route path="decisions/:id" element={<DecisionDetail />} />
             <Route path="deals" element={<Deals />} />

@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore, currentWeekKey, exportJSON, markBackup, hasRestorePoint, restorePrevious, clearRestorePoint, isCompletedHandoff } from "../lib/store.js";
+import { findOrphans, pendingPredictions } from "../lib/feasibility.js";
+import { seedExample } from "../lib/onboarding.js";
 import { pipelineWeighted, rottingOf, stageById } from "../lib/deal.js";
 import { compute } from "../lib/money.js";
 import { won, daysBetween, weekLabel, isoDate } from "../lib/format.js";
@@ -62,13 +64,15 @@ export default function Home() {
   }
   function doRestore() { if (restorePrevious()) { setRestorable(false); alert("직전 상태로 되돌렸습니다."); } }
   function dismissRestore() { clearRestorePoint(); setRestorable(false); }
-  const { deals, moneyTests, decisions, teamMembers, handoffs, oneOnOnes, quarterlyGoals, weeklyReviews, meta } = state;
+  const { deals, moneyTests, decisions, teamMembers, handoffs, oneOnOnes, quarterlyGoals, weeklyReviews, meta, companyGoals, feasibilityCases, projects, tasks, stakeholders, predictions } = state;
 
   const now = new Date();
   // 하루 단위 재계산 트리거 — now(new Date())는 매 렌더 새 참조라 deps로 못 씀. ISO 날짜 문자열로 고정.
   const todayIso = isoDate(now);
   const isFriday = now.getDay() === 5;
   const weekKey = currentWeekKey();
+  const orphans = useMemo(() => findOrphans(state), [state]);
+  const pendingPreds = useMemo(() => pendingPredictions(state, todayIso), [state, todayIso]);
   const activeMembers = useMemo(() => (teamMembers || []).filter((m) => m.active !== false), [teamMembers]);
   const hasTeam = activeMembers.length >= 1;
 
@@ -202,7 +206,7 @@ export default function Home() {
   const peopleDone = (handoffs || []).filter(isCompletedHandoff).length;
 
   // ===== 배너/상태 =====
-  const totalRecords = (deals || []).length + (moneyTests || []).length + (decisions || []).length + (teamMembers || []).length + (handoffs || []).length + (oneOnOnes || []).length + (weeklyReviews || []).length;
+  const totalRecords = (deals || []).length + (moneyTests || []).length + (decisions || []).length + (teamMembers || []).length + (handoffs || []).length + (oneOnOnes || []).length + (weeklyReviews || []).length + (companyGoals || []).length + (feasibilityCases || []).length + (projects || []).length + (tasks || []).length + (stakeholders || []).length + (predictions || []).length;
   const isEmpty = totalRecords === 0;
   const daysSinceBackup = meta && meta.lastBackupAt ? daysBetween(meta.lastBackupAt, now) : null;
   const showBackup = totalRecords > 0 && (daysSinceBackup == null || daysSinceBackup >= 7);
@@ -280,11 +284,25 @@ export default function Home() {
         <div className="panel empty section">
           <div className="em-ic">🌱</div>
           <h3>성장원장을 시작해 보세요</h3>
-          <p>가장 좋은 첫 걸음은 둘 중 하나입니다: 머릿속의 "이거 돈 될까"를 <b>머니테스트</b>로 돌려보거나, 지금 고민 중인 사업 판단 하나를 <b>판단 원장</b>에 기록하는 것.</p>
+          <p>흐름은 <b>기업 목표 → 타당성 검증 → 프로젝트 → 실행</b>입니다. 먼저 회사·고객사·임원의 <b>목표</b>를 하나 올리거나, 감이 안 잡히면 <b>예시</b>로 전체 흐름을 채워 둘러보세요.</p>
           <div className="gap-wrap" style={{ justifyContent: "center" }}>
-            <button className="btn btn-primary" onClick={() => nav("/money-test")}>머니테스트 하기</button>
-            <button className="btn" onClick={() => nav("/decisions")}>판단 기록하기</button>
+            <button className="btn btn-primary" onClick={() => nav("/goals")}>목표 추가하기</button>
+            <button className="btn" onClick={() => { if (confirm("예시 데이터(목표·타당성·프로젝트·할일·예측)를 채웁니다. 언제든 지우고 실제 데이터로 바꿀 수 있습니다.")) seedExample(); }}>예시로 시작</button>
           </div>
+        </div>
+      )}
+
+      {!isEmpty && orphans.length > 0 && (
+        <div className="notice warn section between" style={{ alignItems: "center" }}>
+          <span><b>정렬 재검토 {orphans.length}건</b> — 목표에 연결되지 않은 타당성·프로젝트가 있습니다. 정렬되지 않은 일은 "왜 하는지"가 흐려집니다.</span>
+          <button className="btn btn-sm btn-primary" style={{ flex: "0 0 auto" }} onClick={() => nav(orphans[0].to)}>재검토</button>
+        </div>
+      )}
+
+      {!isEmpty && pendingPreds.length > 0 && (
+        <div className="notice info section between" style={{ alignItems: "center" }}>
+          <span><b>판정 대기 예측 {pendingPreds.length}건</b> — 마감이 지난 예측이 있습니다. 대조해야 판단력이 숫자로 쌓입니다.</span>
+          <button className="btn btn-sm btn-primary" style={{ flex: "0 0 auto" }} onClick={() => nav("/predictions")}>판정하기</button>
         </div>
       )}
 
@@ -350,9 +368,9 @@ export default function Home() {
       {/* ===== 빠른 이동 ===== */}
       {!isEmpty && (
         <div className="section quick-grid">
-          <button className="quick" onClick={() => nav("/decisions")}><span className="q-ic">⚖️</span> 판단 기록 <span className="q-sub">기둥① 원장</span></button>
-          <button className="quick" onClick={() => nav("/money-test")}><span className="q-ic">💰</span> 머니테스트 <span className="q-sub">돈 프레임</span></button>
-          <button className="quick" onClick={() => nav("/weekly")}><span className="q-ic">🧭</span> 주간 리뷰 <span className="q-sub">북극성</span></button>
+          <button className="quick" onClick={() => nav("/goals")}><span className="q-ic">🎯</span> 목표 <span className="q-sub">정렬 기준</span></button>
+          <button className="quick" onClick={() => nav("/feasibility")}><span className="q-ic">⚖️</span> 타당성 <span className="q-sub">Go/Hold/No-Go</span></button>
+          <button className="quick" onClick={() => nav("/projects")}><span className="q-ic">📁</span> 프로젝트 <span className="q-sub">실행 관리</span></button>
         </div>
       )}
 

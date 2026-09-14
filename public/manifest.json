@@ -1,0 +1,17 @@
+{
+  "name": "성장원장 — Growth Ledger",
+  "short_name": "성장원장",
+  "description": "기업 목표에 정렬해 프로젝트 타당성을 검증하고 제안·실행·사람을 관리하는 리더십 운영 원장",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f8fa",
+  "theme_color": "#16181d",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

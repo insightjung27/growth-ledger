@@ -86,7 +86,7 @@ export const DELEGATION_LEVELS = [
 function fresh() {
   const now = new Date().toISOString();
   return {
-    version: 2,
+    version: 3,
     deals: [],
     moneyTests: [],
     weeklyReviews: [],
@@ -95,10 +95,19 @@ function fresh() {
     handoffs: [],
     oneOnOnes: [],
     quarterlyGoals: [],
-    meta: { createdAt: now, lastOpenedAt: now, lastBackupAt: null },
+    // v3 — IT·비즈니스 정렬 백본 (기업목표→타당성→프로젝트→실행)
+    companyGoals: [],
+    feasibilityCases: [],
+    projects: [],
+    tasks: [],
+    stakeholders: [],
+    predictions: [],
+    proposals: [],
+    competencyEvidence: [],
+    meta: { createdAt: now, lastOpenedAt: now, lastBackupAt: null, theme: "auto" },
   };
 }
-const ARRAYS = ["deals", "moneyTests", "weeklyReviews", "decisions", "teamMembers", "handoffs", "oneOnOnes", "quarterlyGoals"];
+const ARRAYS = ["deals", "moneyTests", "weeklyReviews", "decisions", "teamMembers", "handoffs", "oneOnOnes", "quarterlyGoals", "companyGoals", "feasibilityCases", "projects", "tasks", "stakeholders", "predictions", "proposals", "competencyEvidence"];
 
 function sanitize(obj) {
   const base = fresh();
@@ -125,6 +134,30 @@ function sanitize(obj) {
   s.teamMembers = s.teamMembers.map((x) => ({ strengths: [], growthAreas: [], levelHistory: [], projects: [], operations: [], ...x, performance: { tier: "", axes: {}, evidence: "", plan: "", updatedAt: null, ...(x && x.performance) } }));
   s.oneOnOnes = s.oneOnOnes.map((x) => ({ actionItems: [], carriedOver: [], ...x }));
   s.quarterlyGoals = s.quarterlyGoals.map((x) => ({ changeLog: [], ...x }));
+  // ===== v3 딥백필 — 중첩배열/객체 결측 방어(구버전 v2 백업·손상 import) =====
+  s.companyGoals = s.companyGoals.map((x) => ({
+    title: "", kind: "objective", source: "internal", cycle: "", status: "active", confidence: "amber", parentId: null, memo: "", ...x,
+    keyResults: Array.isArray(x && x.keyResults) ? x.keyResults.map((k) => ({ id: uid(), name: "", unit: "", startValue: 0, targetValue: 0, currentValue: 0, confidence: "amber", ...k })) : [],
+  }));
+  s.feasibilityCases = s.feasibilityCases.map((x) => ({
+    title: "", problem: "", expectedOutcome: "", linkedGoalId: null, linkedKrId: null, linkedDealId: null, moneyTestId: null,
+    confidence: 0.8, timeCritical: false, moscow: "should", contribution: "med", status: "draft", decisionId: null, projectId: null, ...x,
+    scores: { goalAlign: null, value: null, strategicFit: null, feasibility: null, risk: null, cost: null, ...(x && x.scores) },
+    gates: { compliance: true, reversibility: "reversible", budgetFit: true, ...(x && x.gates) },
+  }));
+  s.projects = s.projects.map((x) => ({
+    title: "", goalId: null, krId: null, caseId: null, proposalId: null, dealId: null, status: "proposed", selfExec: false, contribution: "med", startedAt: null, closedAt: null, ...x,
+    stakeholderIds: Array.isArray(x && x.stakeholderIds) ? x.stakeholderIds : [],
+    handoffIds: Array.isArray(x && x.handoffIds) ? x.handoffIds : [],
+    taskIds: Array.isArray(x && x.taskIds) ? x.taskIds : [],
+    milestones: Array.isArray(x && x.milestones) ? x.milestones.map((m) => ({ id: uid(), name: "", targetDate: "", done: false, ...m })) : [],
+  }));
+  s.tasks = s.tasks.map((x) => ({ title: "", projectId: null, status: "todo", priority: "med", due: "", inbox: false, note: "", ...x }));
+  s.stakeholders = s.stakeholders.map((x) => ({ name: "", role: "other", org: "", contact: "", power: 3, interest: 3, stance: "unclear", notes: "", ...x, projectIds: Array.isArray(x && x.projectIds) ? x.projectIds : [] }));
+  s.predictions = s.predictions.map((x) => ({ question: "", probability: 0.6, resolveBy: "", resolution: null, resolvedAt: null, linkedItemId: null, ...x, tags: Array.isArray(x && x.tags) ? x.tags : [] }));
+  s.proposals = s.proposals.map((x) => ({ title: "", caseId: null, linkedGoalId: null, recommendation: "", theAsk: "", decisionBy: "", status: "draft", ...x, stakeholderIds: Array.isArray(x && x.stakeholderIds) ? x.stakeholderIds : [], sections: Array.isArray(x && x.sections) ? x.sections : [], proofPoints: Array.isArray(x && x.proofPoints) ? x.proofPoints : [], risks: Array.isArray(x && x.risks) ? x.risks : [] }));
+  s.competencyEvidence = s.competencyEvidence.map((x) => ({ competencyId: "", date: "", whatIDid: "", impact: "", sourceItemId: null, ...x }));
+  if (!s.meta.theme) s.meta.theme = "auto";
   return s;
 }
 
@@ -168,13 +201,13 @@ export function addDeal(partial) {
   return deal.id;
 }
 export function updateDeal(id, patch) { setState((s) => ({ ...s, deals: s.deals.map((d) => (d.id === id ? { ...d, ...patch, updatedAt: new Date().toISOString() } : d)) })); }
-export function removeDeal(id) { setState((s) => ({ ...s, deals: s.deals.filter((d) => d.id !== id) })); }
+export function removeDeal(id) { setState((s) => ({ ...s, deals: s.deals.filter((d) => d.id !== id), feasibilityCases: s.feasibilityCases.map((c) => (c.linkedDealId === id ? { ...c, linkedDealId: null } : c)), projects: s.projects.map((p) => (p.dealId === id ? { ...p, dealId: null } : p)) })); }
 export function getDeal(id) { return state.deals.find((d) => d.id === id) || null; }
 
 /* ===== 머니테스트 ===== */
 export function addMoneyTest(mt) { const now = new Date().toISOString(); const rec = { id: uid(), createdAt: now, updatedAt: now, actualOutcome: "", actualPayback: null, decisionId: null, dealId: null, ...mt }; setState((s) => ({ ...s, moneyTests: [rec, ...s.moneyTests] })); return rec.id; }
 export function updateMoneyTest(id, patch) { setState((s) => ({ ...s, moneyTests: s.moneyTests.map((m) => (m.id === id ? { ...m, ...patch, updatedAt: new Date().toISOString() } : m)) })); }
-export function removeMoneyTest(id) { setState((s) => ({ ...s, moneyTests: s.moneyTests.filter((m) => m.id !== id), deals: s.deals.map((d) => (d.moneyTestId === id ? { ...d, moneyTestId: null } : d)), decisions: s.decisions.map((x) => (x.moneyTestId === id ? { ...x, moneyTestId: null } : x)) })); }
+export function removeMoneyTest(id) { setState((s) => ({ ...s, moneyTests: s.moneyTests.filter((m) => m.id !== id), deals: s.deals.map((d) => (d.moneyTestId === id ? { ...d, moneyTestId: null } : d)), decisions: s.decisions.map((x) => (x.moneyTestId === id ? { ...x, moneyTestId: null } : x)), feasibilityCases: s.feasibilityCases.map((c) => (c.moneyTestId === id ? { ...c, moneyTestId: null } : c)) })); }
 export function getMoneyTest(id) { return state.moneyTests.find((m) => m.id === id) || null; }
 
 /* ===== 판단(Decision) 원장 [기둥①] ===== */
@@ -188,7 +221,7 @@ const _dec = coll("decisions", () => ({
 }));
 export const addDecision = _dec.add, updateDecision = _dec.update, getDecision = _dec.get;
 export function removeDecision(id) {
-  setState((s) => ({ ...s, decisions: s.decisions.filter((x) => x.id !== id), deals: s.deals.map((d) => (d.decisionId === id ? { ...d, decisionId: null } : d)), moneyTests: s.moneyTests.map((m) => (m.decisionId === id ? { ...m, decisionId: null } : m)) }));
+  setState((s) => ({ ...s, decisions: s.decisions.filter((x) => x.id !== id), deals: s.deals.map((d) => (d.decisionId === id ? { ...d, decisionId: null } : d)), moneyTests: s.moneyTests.map((m) => (m.decisionId === id ? { ...m, decisionId: null } : m)), feasibilityCases: s.feasibilityCases.map((c) => (c.decisionId === id ? { ...c, decisionId: null } : c)) }));
 }
 
 /* ===== 분기 목표 [기둥② 항목6·R3] ===== */
@@ -231,6 +264,117 @@ export function upsertWeekly(weekOf, patch) {
     return { ...s, weeklyReviews: [rec, ...s.weeklyReviews] };
   });
 }
+
+/* ========================= v3 — IT·비즈니스 정렬 백본 ========================= */
+
+/* ----- [M1] 기업·고객사 목표 + KeyResults (얇은 SSOT·진척은 파생) ----- */
+export const GOAL_KINDS = [{ id: "pillar", label: "전략기둥" }, { id: "objective", label: "목표" }];
+export const GOAL_SOURCES = [{ id: "client", label: "고객사" }, { id: "exec", label: "임원/경영" }, { id: "internal", label: "내부" }];
+const _cg = coll("companyGoals", () => ({ title: "", kind: "objective", source: "internal", cycle: "", status: "active", confidence: "amber", parentId: null, keyResults: [], memo: "" }));
+export const addCompanyGoal = _cg.add, updateCompanyGoal = _cg.update, getCompanyGoal = _cg.get;
+export function removeCompanyGoal(id) {
+  setState((s) => {
+    const g = s.companyGoals.find((x) => x.id === id);
+    const krIds = new Set((g?.keyResults || []).map((k) => k.id));
+    return {
+      ...s,
+      companyGoals: s.companyGoals.filter((x) => x.id !== id).map((x) => (x.parentId === id ? { ...x, parentId: null } : x)),
+      feasibilityCases: s.feasibilityCases.map((c) => ({ ...c, linkedGoalId: c.linkedGoalId === id ? null : c.linkedGoalId, linkedKrId: krIds.has(c.linkedKrId) ? null : c.linkedKrId })),
+      projects: s.projects.map((p) => ({ ...p, goalId: p.goalId === id ? null : p.goalId, krId: krIds.has(p.krId) ? null : p.krId })),
+    };
+  });
+}
+export function addKeyResult(goalId, kr) { setState((s) => ({ ...s, companyGoals: s.companyGoals.map((g) => (g.id === goalId ? { ...g, keyResults: [...(g.keyResults || []), { id: uid(), name: "", unit: "", startValue: 0, targetValue: 0, currentValue: 0, confidence: "amber", ...kr }], updatedAt: new Date().toISOString() } : g)) })); }
+export function updateKeyResult(goalId, krId, patch) { setState((s) => ({ ...s, companyGoals: s.companyGoals.map((g) => (g.id === goalId ? { ...g, keyResults: (g.keyResults || []).map((k) => (k.id === krId ? { ...k, ...patch } : k)), updatedAt: new Date().toISOString() } : g)) })); }
+export function removeKeyResult(goalId, krId) {
+  setState((s) => ({
+    ...s,
+    companyGoals: s.companyGoals.map((g) => (g.id === goalId ? { ...g, keyResults: (g.keyResults || []).filter((k) => k.id !== krId), updatedAt: new Date().toISOString() } : g)),
+    feasibilityCases: s.feasibilityCases.map((c) => (c.linkedKrId === krId ? { ...c, linkedKrId: null } : c)),
+    projects: s.projects.map((p) => (p.krId === krId ? { ...p, krId: null } : p)),
+  }));
+}
+
+/* ----- [M2] 타당성 케이스 (6기준 가중 + 하드게이트, 점수는 파생·미저장) ----- */
+const _fc = coll("feasibilityCases", () => ({ title: "", problem: "", expectedOutcome: "", linkedGoalId: null, linkedKrId: null, linkedDealId: null, moneyTestId: null, scores: { goalAlign: null, value: null, strategicFit: null, feasibility: null, risk: null, cost: null }, confidence: 0.8, timeCritical: false, moscow: "should", contribution: "med", gates: { compliance: true, reversibility: "reversible", budgetFit: true }, status: "draft", decisionId: null, projectId: null }));
+export const addFeasibilityCase = _fc.add, updateFeasibilityCase = _fc.update, getFeasibilityCase = _fc.get;
+export function removeFeasibilityCase(id) {
+  setState((s) => ({ ...s, feasibilityCases: s.feasibilityCases.filter((x) => x.id !== id), projects: s.projects.map((p) => (p.caseId === id ? { ...p, caseId: null } : p)), proposals: s.proposals.map((p) => (p.caseId === id ? { ...p, caseId: null } : p)) }));
+}
+
+/* ----- [M4] 프로젝트 1급 + 라이프사이클 ----- */
+export const PROJECT_STATUSES = [
+  { id: "proposed", label: "발의", prob: 0.1 },
+  { id: "verified", label: "검증", prob: 0.3 },
+  { id: "approved", label: "승인", prob: 0.6 },
+  { id: "executing", label: "실행", prob: 0.85 },
+  { id: "closed", label: "종료", prob: 1 },
+  { id: "held", label: "보류", prob: 0 },
+  { id: "killed", label: "중단", prob: 0 },
+];
+const _pj = coll("projects", () => ({ title: "", goalId: null, krId: null, caseId: null, proposalId: null, dealId: null, status: "proposed", stakeholderIds: [], handoffIds: [], taskIds: [], milestones: [], selfExec: false, contribution: "med", startedAt: null, closedAt: null }));
+export const addProject = _pj.add, updateProject = _pj.update, getProject = _pj.get;
+export function removeProject(id) {
+  setState((s) => ({
+    ...s,
+    projects: s.projects.filter((x) => x.id !== id),
+    tasks: s.tasks.map((t) => (t.projectId === id ? { ...t, projectId: null, inbox: true } : t)),
+    stakeholders: s.stakeholders.map((k) => ({ ...k, projectIds: (k.projectIds || []).filter((pid) => pid !== id) })),
+    feasibilityCases: s.feasibilityCases.map((c) => (c.projectId === id ? { ...c, projectId: null } : c)),
+  }));
+}
+// 타당성 Go → 프로젝트 승격(1:1 수동)
+export function promoteCaseToProject(caseId) {
+  const c = state.feasibilityCases.find((x) => x.id === caseId);
+  if (!c) return null;
+  if (c.projectId && state.projects.find((p) => p.id === c.projectId)) return c.projectId;
+  const pid = addProject({ title: c.title || "무제 프로젝트", goalId: c.linkedGoalId, krId: c.linkedKrId, caseId: c.id, dealId: c.linkedDealId, status: "approved", contribution: c.contribution, startedAt: new Date().toISOString() });
+  updateFeasibilityCase(caseId, { projectId: pid, status: "executing" });
+  return pid;
+}
+export function addMilestone(projectId, m) { setState((s) => ({ ...s, projects: s.projects.map((p) => (p.id === projectId ? { ...p, milestones: [...(p.milestones || []), { id: uid(), name: "", targetDate: "", done: false, ...m }], updatedAt: new Date().toISOString() } : p)) })); }
+export function updateMilestone(projectId, mid, patch) { setState((s) => ({ ...s, projects: s.projects.map((p) => (p.id === projectId ? { ...p, milestones: (p.milestones || []).map((m) => (m.id === mid ? { ...m, ...patch } : m)), updatedAt: new Date().toISOString() } : p)) })); }
+export function removeMilestone(projectId, mid) { setState((s) => ({ ...s, projects: s.projects.map((p) => (p.id === projectId ? { ...p, milestones: (p.milestones || []).filter((m) => m.id !== mid), updatedAt: new Date().toISOString() } : p)) })); }
+
+/* ----- [M5] 1인 실행 태스크 (handoffs와 분리·북극성 롤업 제외) ----- */
+const _tk = coll("tasks", () => ({ title: "", projectId: null, status: "todo", priority: "med", due: "", inbox: false, note: "" }));
+export const addTask = _tk.add, updateTask = _tk.update, removeTask = _tk.remove, getTask = _tk.get;
+
+/* ----- [M9] 이해관계자 (발의자·임원·고객사 담당 — teamMembers와 분리) ----- */
+export const STAKEHOLDER_ROLES = [
+  { id: "proposer", label: "발의자" },
+  { id: "execSponsor", label: "임원/스폰서" },
+  { id: "clientContact", label: "고객사 담당" },
+  { id: "pm", label: "PM" },
+  { id: "other", label: "기타" },
+];
+export const STANCES = [
+  { id: "supportive", label: "우호", color: "green" },
+  { id: "neutral", label: "중립", color: "gray" },
+  { id: "opposed", label: "반대", color: "red" },
+  { id: "unclear", label: "불명", color: "amber" },
+];
+const _sh = coll("stakeholders", () => ({ name: "", role: "other", org: "", contact: "", power: 3, interest: 3, stance: "unclear", projectIds: [], notes: "" }));
+export const addStakeholder = _sh.add, updateStakeholder = _sh.update, getStakeholder = _sh.get;
+export function removeStakeholder(id) {
+  setState((s) => ({ ...s, stakeholders: s.stakeholders.filter((x) => x.id !== id), projects: s.projects.map((p) => ({ ...p, stakeholderIds: (p.stakeholderIds || []).filter((sid) => sid !== id) })), proposals: s.proposals.map((p) => ({ ...p, stakeholderIds: (p.stakeholderIds || []).filter((sid) => sid !== id) })) }));
+}
+
+/* ----- [M8] 예측 로그 (판정 전 immutable — 후견편향 차단) ----- */
+const _pr = coll("predictions", () => ({ question: "", probability: 0.6, resolveBy: "", resolution: null, resolvedAt: null, tags: [], linkedItemId: null }));
+export const addPrediction = _pr.add, getPrediction = _pr.get, removePrediction = _pr.remove;
+export function updatePrediction(id, patch) {
+  setState((s) => ({ ...s, predictions: s.predictions.map((p) => {
+    if (p.id !== id) return p;
+    if (p.resolution) { const { question, probability, resolveBy, ...rest } = patch; return { ...p, ...rest, updatedAt: new Date().toISOString() }; } // 판정 후 핵심필드 잠금
+    return { ...p, ...patch, updatedAt: new Date().toISOString() };
+  }) }));
+}
+export function resolvePrediction(id, resolution) { setState((s) => ({ ...s, predictions: s.predictions.map((p) => (p.id === id ? { ...p, resolution, resolvedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : p)) })); }
+
+/* ----- 제안서 (Phase 2·스켈레톤 — 데이터생존 위해 배열만 선반영) ----- */
+const _pp = coll("proposals", () => ({ title: "", caseId: null, linkedGoalId: null, stakeholderIds: [], sections: [], recommendation: "", proofPoints: [], risks: [], theAsk: "", decisionBy: "", status: "draft" }));
+export const addProposal = _pp.add, updateProposal = _pp.update, removeProposal = _pp.remove, getProposal = _pp.get;
 
 /* ===== 백업 ===== */
 export function exportJSON() { return JSON.stringify(state, null, 2); }
