@@ -77,6 +77,7 @@ export default function Layout() {
   const loc = useLocation();
   const persistErr = usePersistError();
   const [sheet, setSheet] = useState(null); // null | groupKey | "all"
+  const [openGroup, setOpenGroup] = useState(null); // 데스크톱 드롭다운(클릭 토글)
   const [capOpen, setCapOpen] = useState(false);
   const [installEvt, setInstallEvt] = useState(null);
   const isIOS = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.matchMedia("(display-mode: standalone)").matches;
@@ -86,8 +87,15 @@ export default function Layout() {
     window.addEventListener("beforeinstallprompt", onPrompt);
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
   }, []);
-  // 라우트 이동 시 시트 닫기
-  useEffect(() => { setSheet(null); }, [loc.pathname]);
+  // 라우트 이동 시 시트·드롭다운 닫기
+  useEffect(() => { setSheet(null); setOpenGroup(null); }, [loc.pathname]);
+  // 데스크톱 드롭다운: 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!openGroup) return;
+    function onDoc(e) { if (!e.target.closest || !e.target.closest(".gnav-group")) setOpenGroup(null); }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [openGroup]);
 
   async function doInstall() { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; setInstallEvt(null); }
   function doExport() { download(exportJSON(), `성장원장-백업-${isoDate()}.json`); markBackup(); }
@@ -139,13 +147,15 @@ export default function Layout() {
           {NAV.map((g) => g.to ? (
             <NavLink key={g.key} to={g.to} end={g.end} className={({ isActive }) => "gnav-top" + (isActive ? " active" : "")}>{g.label}</NavLink>
           ) : (
-            <div key={g.key} className={"gnav-group" + (isChildActive(g) ? " active" : "")}>
-              <button className="gnav-top" type="button">{g.label} <span className="caret">▾</span></button>
-              <div className="gnav-dd">
-                {g.children.map((c) => (
-                  <NavLink key={c.to} to={c.to} className={({ isActive }) => "gnav-ddi" + (isActive ? " active" : "")}>{c.label}</NavLink>
-                ))}
-              </div>
+            <div key={g.key} className={"gnav-group" + (isChildActive(g) ? " active" : "") + (openGroup === g.key ? " open" : "")}>
+              <button className="gnav-top" type="button" aria-expanded={openGroup === g.key} onClick={() => setOpenGroup(openGroup === g.key ? null : g.key)}>{g.label} <span className="caret">▾</span></button>
+              {openGroup === g.key && (
+                <div className="gnav-dd">
+                  {g.children.map((c) => (
+                    <NavLink key={c.to} to={c.to} onClick={() => setOpenGroup(null)} className={({ isActive }) => "gnav-ddi" + (isActive ? " active" : "")}>{c.label}</NavLink>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </nav>

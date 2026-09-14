@@ -485,8 +485,9 @@ a.gnav-top.active { color: var(--ink); border-bottom-color: var(--accent); }
 .gnav-group { position: relative; }
 .gnav-group.active > .gnav-top { color: var(--ink); border-bottom-color: var(--accent); }
 .gnav-group .caret { font-size: 9px; color: var(--muted-2); }
-.gnav-dd { position: absolute; top: 100%; left: 0; min-width: 176px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 6px; display: none; flex-direction: column; gap: 2px; z-index: 50; }
-.gnav-group:hover .gnav-dd, .gnav-group:focus-within .gnav-dd { display: flex; }
+.gnav-dd { position: absolute; top: 100%; left: 0; min-width: 176px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 6px; display: flex; flex-direction: column; gap: 2px; z-index: 50; }
+.gnav-group.open .caret { transform: rotate(180deg); }
+.gnav-group.open > .gnav-top { color: var(--ink); }
 .gnav-ddi { padding: 9px 12px; border-radius: 8px; color: var(--ink-2); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
 .gnav-ddi:hover { background: var(--paper-3); color: var(--ink); }
 .gnav-ddi.active { color: var(--accent); background: var(--accent-weak); }
