@@ -476,3 +476,22 @@ table.grid td { max-width: 260px; overflow: hidden; text-overflow: ellipsis; whi
 .cost-amt { flex: 1 1 96px; }
 .cost-amt .input { height: 38px; }
 @media (max-width: 560px) { .cost-row { border-bottom: 1px solid var(--line-2); padding-bottom: 10px; } .cost-amt { flex: 1 1 44%; } }
+
+/* ===== 그룹 네비(1depth/2depth) ===== */
+.gnav { max-width: var(--maxw); margin: 0 auto; width: 100%; padding: 0 8px; display: flex; gap: 2px; overflow-x: auto; }
+.gnav-top { padding: 11px 13px; color: var(--muted); font-weight: 600; font-size: 14px; border: none; background: transparent; border-bottom: 2px solid transparent; white-space: nowrap; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.gnav-top:hover { color: var(--ink); }
+a.gnav-top.active { color: var(--ink); border-bottom-color: var(--accent); }
+.gnav-group { position: relative; }
+.gnav-group.active > .gnav-top { color: var(--ink); border-bottom-color: var(--accent); }
+.gnav-group .caret { font-size: 9px; color: var(--muted-2); }
+.gnav-dd { position: absolute; top: 100%; left: 0; min-width: 176px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 6px; display: none; flex-direction: column; gap: 2px; z-index: 50; }
+.gnav-group:hover .gnav-dd, .gnav-group:focus-within .gnav-dd { display: flex; }
+.gnav-ddi { padding: 9px 12px; border-radius: 8px; color: var(--ink-2); font-weight: 600; font-size: 13.5px; white-space: nowrap; }
+.gnav-ddi:hover { background: var(--paper-3); color: var(--ink); }
+.gnav-ddi.active { color: var(--accent); background: var(--accent-weak); }
+
+/* 전체 시트 */
+.sheet-tall { max-height: 82vh; overflow-y: auto; }
+.sheet-group { margin-bottom: 12px; }
+.sheet-section-title { font-size: 12px; font-weight: 700; color: var(--muted); margin: 8px 2px 6px; letter-spacing: 0.02em; }
