@@ -149,13 +149,11 @@ export default function Layout() {
           ) : (
             <div key={g.key} className={"gnav-group" + (isChildActive(g) ? " active" : "") + (openGroup === g.key ? " open" : "")}>
               <button className="gnav-top" type="button" aria-expanded={openGroup === g.key} onClick={() => setOpenGroup(openGroup === g.key ? null : g.key)}>{g.label} <span className="caret">▾</span></button>
-              {openGroup === g.key && (
-                <div className="gnav-dd">
-                  {g.children.map((c) => (
-                    <NavLink key={c.to} to={c.to} onClick={() => setOpenGroup(null)} className={({ isActive }) => "gnav-ddi" + (isActive ? " active" : "")}>{c.label}</NavLink>
-                  ))}
-                </div>
-              )}
+              <div className="gnav-dd">
+                {g.children.map((c) => (
+                  <NavLink key={c.to} to={c.to} onClick={() => setOpenGroup(null)} className={({ isActive }) => "gnav-ddi" + (isActive ? " active" : "")}>{c.label}</NavLink>
+                ))}
+              </div>
             </div>
           ))}
         </nav>
