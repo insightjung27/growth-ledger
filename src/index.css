@@ -407,3 +407,59 @@ table.grid td { max-width: 260px; overflow: hidden; text-overflow: ellipsis; whi
   .si-roles td:nth-child(7) { flex: 0 0 auto; }  /* 구분 */
   .si-roles td:nth-child(8) { flex: 0 0 auto; margin-left: auto; }  /* 삭제 */
 }
+
+/* ===================== v3 백본 컴포넌트 ===================== */
+/* 클릭 카드 리스트 */
+.li-card { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 13px 15px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; font: inherit; color: inherit; }
+.li-card:hover { background: var(--paper-2); border-color: var(--muted-2); }
+.li-card.static, .li-card.static:hover { cursor: default; background: var(--paper); border-color: var(--line); }
+.li-card .chev, .chev { color: var(--muted-2); font-size: 20px; flex: 0 0 auto; line-height: 1; }
+
+/* 진척 바 */
+.pbar { height: 7px; background: var(--paper-3); border-radius: 999px; overflow: hidden; flex: 1; min-width: 0; }
+.pbar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .2s; }
+
+/* KR 행 */
+.kr-row { display: flex; align-items: center; gap: 12px; }
+.kr-cur { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+@media (max-width: 560px) { .kr-row { flex-wrap: wrap; } .kr-cur { width: 100%; justify-content: flex-end; margin-top: 4px; } }
+
+/* 1~5 채점 세그 — 폭 꽉 채움·터치 */
+.seg.score-seg { display: flex; width: 100%; }
+.seg.score-seg button { flex: 1; min-height: 40px; }
+
+/* 타당성 판정 카드 */
+.verdict-card { border-left: 3px solid var(--line); }
+.verdict-card.green { border-left-color: var(--green); }
+.verdict-card.amber { border-left-color: var(--amber); }
+.verdict-card.red { border-left-color: var(--red); }
+.verdict-card.gray { border-left-color: var(--muted-2); }
+.verdict-reason { margin-top: 10px; font-weight: 600; overflow-wrap: anywhere; }
+.score-chip { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--paper-3); color: var(--muted); white-space: nowrap; }
+.evi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line-2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 12px; }
+.evi { background: var(--paper); padding: 10px 12px; }
+.evi .k { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.evi .val { font-size: 14px; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .evi-grid { grid-template-columns: 1fr; } }
+
+/* 체크 행 */
+.check-row { display: flex; align-items: center; gap: 9px; font-size: 14px; cursor: pointer; }
+.check-row input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--accent); }
+
+/* 제목 인라인 입력 · 브레드크럼 */
+.title-input { font-size: 19px; font-weight: 700; }
+.crumb { font-size: 13px; color: var(--muted); margin-bottom: 4px; overflow-wrap: anywhere; }
+.crumb a { color: var(--accent); font-weight: 600; }
+
+/* 인라인 고스트 입력(태스크) */
+.ghost-input { border: none; background: transparent; width: 100%; padding: 2px 0; font: inherit; color: inherit; outline: none; border-bottom: 1px solid transparent; }
+.ghost-input:focus { border-bottom-color: var(--accent); }
+
+/* FAB — 빠른캡처 */
+.fab { position: fixed; right: 16px; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 14px); width: 52px; height: 52px; border-radius: 50%; background: var(--accent); color: #fff; border: none; box-shadow: 0 6px 18px rgba(16, 18, 20, 0.28); display: flex; align-items: center; justify-content: center; z-index: 45; cursor: pointer; }
+.fab:active { transform: translateY(1px); }
+.fab svg { width: 26px; height: 26px; }
+.cap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.cap-btn { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 16px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); font-weight: 650; font-size: 13px; color: var(--ink); cursor: pointer; }
+.cap-btn:hover { background: var(--paper-3); }
+.cap-emoji { font-size: 22px; line-height: 1; }

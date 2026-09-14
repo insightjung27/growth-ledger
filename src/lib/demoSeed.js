@@ -1,6 +1,40 @@
 // dev 전용 데모 데이터 — 채워진 상태 UX 점검용. 프로덕션 미사용(main.jsx에서 DEV+?seed에서만 로드).
 export const DEMO = {
-  version: 2,
+  version: 3,
+  companyGoals: [
+    { id: "cg1", title: "결제 완료율 개선으로 이탈 감소", kind: "objective", source: "exec", cycle: "2026Q3", status: "active", confidence: "amber", parentId: null, memo: "대표 지시 최우선", keyResults: [
+      { id: "kr1", name: "결제 완료율", unit: "%", startValue: 68, targetValue: 75, currentValue: 71, confidence: "amber" },
+      { id: "kr2", name: "정산 오류", unit: "건/월", startValue: 12, targetValue: 0, currentValue: 5, confidence: "green" },
+    ], createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-27T00:00:00.000Z" },
+    { id: "cg2", title: "내부 반복업무 자동화로 운영비 절감", kind: "objective", source: "internal", cycle: "2026Q3", status: "active", confidence: "green", parentId: null, memo: "", keyResults: [
+      { id: "kr3", name: "월 절감시간", unit: "h", startValue: 0, targetValue: 20, currentValue: 8, confidence: "amber" },
+    ], createdAt: "2026-08-02T00:00:00.000Z", updatedAt: "2026-08-20T00:00:00.000Z" },
+  ],
+  feasibilityCases: [
+    { id: "fc1", title: "결제 모듈 리뉴얼", problem: "레거시 결제 수기 운영 → 실패·정산오류 잦음", expectedOutcome: "완료율 +7%p, 정산오류 0", linkedGoalId: "cg1", linkedKrId: "kr1", linkedDealId: "dl1", moneyTestId: "m1", scores: { goalAlign: 5, value: 4, strategicFit: 4, feasibility: 3, risk: 3, cost: 4 }, confidence: 0.8, timeCritical: true, moscow: "must", contribution: "high", gates: { compliance: true, reversibility: "reversible", budgetFit: true }, status: "executing", decisionId: "d1", projectId: "pj1", createdAt: "2026-08-12T00:00:00.000Z", updatedAt: "2026-08-14T00:00:00.000Z" },
+    { id: "fc2", title: "정산 대사 자동화 본개발", problem: "PoC 절감효과 확인, 본개발 타당성", expectedOutcome: "월 15h 절감", linkedGoalId: "cg2", linkedKrId: "kr3", linkedDealId: null, moneyTestId: "m2", scores: { goalAlign: 4, value: 4, strategicFit: 3, feasibility: 4, risk: 2, cost: 3 }, confidence: 1.0, timeCritical: false, moscow: "should", contribution: "med", gates: { compliance: true, reversibility: "reversible", budgetFit: true }, status: "decided", decisionId: null, projectId: null, createdAt: "2026-08-06T00:00:00.000Z", updatedAt: "2026-08-06T00:00:00.000Z" },
+    { id: "fc3", title: "(정렬 미완) 신규 대시보드 아이디어", problem: "임원 요청 대시보드", expectedOutcome: "", linkedGoalId: null, linkedKrId: null, linkedDealId: null, moneyTestId: null, scores: { goalAlign: null, value: null, strategicFit: null, feasibility: null, risk: null, cost: null }, confidence: 0.5, timeCritical: false, moscow: "could", contribution: "low", gates: { compliance: true, reversibility: "reversible", budgetFit: true }, status: "verifying", decisionId: null, projectId: null, createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z" },
+  ],
+  stakeholders: [
+    { id: "sh1", name: "김이사(CTO)", role: "execSponsor", org: "고객사", contact: "cto@client.co", power: 5, interest: 4, stance: "supportive", projectIds: ["pj1"], notes: "완료율 지표에 민감 — 근거 숫자로 설득", createdAt: "2026-08-10T00:00:00.000Z", updatedAt: "2026-08-10T00:00:00.000Z" },
+    { id: "sh2", name: "박부장(발의)", role: "proposer", org: "고객사 결제팀", contact: "", power: 3, interest: 5, stance: "neutral", projectIds: ["pj1"], notes: "실무 임팩트를 중시", createdAt: "2026-08-10T00:00:00.000Z", updatedAt: "2026-08-10T00:00:00.000Z" },
+  ],
+  projects: [
+    { id: "pj1", title: "결제 모듈 리뉴얼", goalId: "cg1", krId: "kr1", caseId: "fc1", proposalId: null, dealId: "dl1", status: "executing", stakeholderIds: ["sh1", "sh2"], handoffIds: ["h1"], taskIds: [], milestones: [
+      { id: "ms1", name: "요구·범위 확정", targetDate: "2026-08-20", done: true },
+      { id: "ms2", name: "제안·임원 승인", targetDate: "2026-09-05", done: false },
+      { id: "ms3", name: "개발·오픈", targetDate: "2026-11-30", done: false },
+    ], selfExec: false, contribution: "high", startedAt: "2026-08-14T00:00:00.000Z", closedAt: null, createdAt: "2026-08-14T00:00:00.000Z", updatedAt: "2026-08-27T00:00:00.000Z" },
+  ],
+  tasks: [
+    { id: "tk1", title: "완료율 원인 3가지로 압축", projectId: "pj1", status: "doing", priority: "high", due: "2026-09-02", inbox: false, note: "", createdAt: "2026-08-27T00:00:00.000Z", updatedAt: "2026-08-27T00:00:00.000Z" },
+    { id: "tk2", title: "결제사 PM 미팅 주선", projectId: "pj1", status: "todo", priority: "med", due: "", inbox: false, note: "", createdAt: "2026-08-27T00:00:00.000Z", updatedAt: "2026-08-27T00:00:00.000Z" },
+    { id: "tk3", title: "경쟁사 결제 UX 스캔", projectId: null, status: "todo", priority: "low", due: "", inbox: true, note: "", createdAt: "2026-08-28T00:00:00.000Z", updatedAt: "2026-08-28T00:00:00.000Z" },
+  ],
+  predictions: [
+    { id: "pd1", question: "범위 축소안으로 진행하면 이익률 15% 이상 확보한다", probability: 0.6, resolveBy: "2026-09-10", resolution: null, resolvedAt: null, tags: ["타당성"], linkedItemId: "fc1", createdAt: "2026-08-14T00:00:00.000Z", updatedAt: "2026-08-14T00:00:00.000Z" },
+    { id: "pd2", question: "정산 자동화 PoC는 본개발 기준(월5h)을 넘는다", probability: 0.7, resolveBy: "2026-08-21", resolution: "YES", resolvedAt: "2026-08-21T00:00:00.000Z", tags: ["프로젝트"], linkedItemId: null, createdAt: "2026-08-05T00:00:00.000Z", updatedAt: "2026-08-21T00:00:00.000Z" },
+  ],
   quarterlyGoals: [
     { id: "qg1", quarter: "2026-Q3", title: "결제완료율 68%→75%", successMetric: "결제완료율", targetValue: "75%", currentValue: "71%", ownerMemberId: "t1", status: "진행중", changeLog: [{ at: "2026-08-20T02:00:00.000Z", field: "targetValue", from: "73%", to: "75%", reason: "상반기 실적 반영 상향" }] },
     { id: "qg2", quarter: "2026-Q3", title: "정산 대사 반복업무 월 20h 절감", successMetric: "월 절감시간", targetValue: "20h", currentValue: "8h", ownerMemberId: "t2", status: "진행중", changeLog: [] },
